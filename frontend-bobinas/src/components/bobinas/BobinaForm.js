@@ -13,7 +13,11 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
-  Grid
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -22,6 +26,9 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { bobinaService } from '../../services/bobinas';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../utils/constants';
+import { authService } from '../../services/auth';
 
 const BobinaForm = () => {
   const [formData, setFormData] = useState({
@@ -35,37 +42,41 @@ const BobinaForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [clientes, setClientes] = useState([]);
-  const [isReplace, setIsReplace] = useState(false);
   const [existingBobina, setExistingBobina] = useState(null);
-  
+  const [autorizacionDialog, setAutorizacionDialog] = useState(false);
+  const [credencialesLider, setCredencialesLider] = useState({
+    username: '',
+    password: ''
+  });
+  const [autorizando, setAutorizando] = useState(false);
+
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
+  const { user } = useAuth();
 
   useEffect(() => {
-    loadClientes();
-    
-    if (isEdit) {
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) {
+      loadClientes();
+    }
+    if (isEdit && user?.role === ROLES.ADMIN) {
       loadBobina();
     }
-  }, [isEdit, id]);
+  }, [isEdit, id, user?.role]);
 
   const loadBobina = async () => {
     try {
       const response = await bobinaService.getById(id);
       const bobina = response.data;
-      
       setFormData({
         hu: bobina.hu,
         cliente: bobina.cliente || '',
         estado: bobina.estado,
         foto: null
       });
-      
-      setPreview(`http://localhost:8000/storage/${bobina.foto_path.replace('public/', '')}`);
+      setPreview(`http://localhost:8000/storage/${bobina.foto_path}`);
     } catch (error) {
       setError('Error al cargar la bobina');
-      console.error('Error loading bobina:', error);
     }
   };
 
@@ -87,13 +98,46 @@ const BobinaForm = () => {
     const file = e.target.files[0];
     if (file) {
       setFormData(prev => ({ ...prev, foto: file }));
-      
-      // Crear preview
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
+      reader.onloadend = () => setPreview(reader.result);
       reader.readAsDataURL(file);
+    }
+  };
+
+  const verificarLider = async () => {
+    setAutorizando(true);
+    try {
+      const response = await authService.login(credencialesLider);
+      if (response.data.role === ROLES.LIDER) {
+        await ejecutarReemplazo();
+      } else {
+        setError('El usuario no tiene permisos de líder');
+      }
+    } catch (error) {
+      setError('Credenciales incorrectas');
+    } finally {
+      setAutorizando(false);
+    }
+  };
+
+  const ejecutarReemplazo = async () => {
+    try {
+      // Verificar que existingBobina tenga ID
+      if (!existingBobina || !existingBobina.id) {
+        setError('No se pudo identificar la bobina a reemplazar');
+        return;
+      }
+
+      await bobinaService.update(existingBobina.id, formData);
+      setSuccess('Bobina reemplazada correctamente');
+      setAutorizacionDialog(false);
+      setExistingBobina(null);
+
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+    } catch (error) {
+      setError('Error al reemplazar la bobina: ' + (error.response?.data?.message || 'Error del servidor'));
     }
   };
 
@@ -105,66 +149,76 @@ const BobinaForm = () => {
 
     try {
       if (isEdit) {
-        await bobinaService.update(id, formData);
-        setSuccess('Bobina actualizada correctamente');
-      } else {
-        const response = await bobinaService.create(formData);
-        
-        if (response.status === 409) {
-          // HU ya existe, preguntar por reemplazo
-          setExistingBobina(response.data);
-          setIsReplace(true);
-          setLoading(false);
-          return;
+        if (user?.role === ROLES.ADMIN) {
+          await bobinaService.update(id, formData);
+          setSuccess('Bobina actualizada correctamente');
         }
-        
-        setSuccess('Bobina registrada correctamente');
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
+      } else {
+        try {
+          await bobinaService.create(formData);
+          setSuccess('Bobina registrada correctamente');
+          setTimeout(() => navigate('/'), 1500);
+        } catch (error) {
+          // Manejar error de HU duplicado
+          if (error.response?.status === 422 || error.response?.status === 409) {
+            const errorData = error.response.data;
+
+            if (errorData.errors?.hu || errorData.message?.includes('already been taken')) {
+              // Buscar la bobina existente por HU
+              try {
+                const response = await bobinaService.getAll({ search: formData.hu });
+                if (response.data.data.length > 0) {
+                  const bobinaExistente = response.data.data[0];
+                  setExistingBobina(bobinaExistente);
+                } else {
+                  setError('Bobina encontrada pero no se pudo obtener información completa');
+                }
+              } catch (searchError) {
+                setError('Error al buscar la bobina existente');
+              }
+            } else {
+              setError(errorData.message || 'Error de validación');
+            }
+          } else {
+            throw error;
+          }
+        }
       }
     } catch (error) {
-      setError(error.response?.data?.message || 'Error al guardar la bobina');
-      console.error('Error saving bobina:', error);
+      setError(error.response?.data?.message || 'Error al procesar la solicitud');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReplace = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      await bobinaService.update(existingBobina.id, formData);
-      setSuccess('Fotografía reemplazada correctamente');
-      setIsReplace(false);
-      setExistingBobina(null);
-      
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
-    } catch (error) {
-      setError('Error al reemplazar la fotografía');
-      console.error('Error replacing photo:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleReplace = () => {
+    setAutorizacionDialog(true);
   };
 
   const handleCancelReplace = () => {
-    setIsReplace(false);
     setExistingBobina(null);
     setFormData(prev => ({ ...prev, hu: '' }));
   };
 
+  const handleCredencialesChange = (e) => {
+    const { name, value } = e.target;
+    setCredencialesLider(prev => ({ ...prev, [name]: value }));
+  };
+
+  if (isEdit && user?.role !== ROLES.ADMIN) {
+    return (
+      <Box>
+        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ mb: 2 }}>
+          Volver
+        </Button>
+        <Alert severity="error">No tienes permisos para editar bobinas</Alert>
+      </Box>
+    );
+  }
+
   return (
     <Box>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/')}
-        sx={{ mb: 2 }}
-      >
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/')} sx={{ mb: 2 }}>
         Volver
       </Button>
 
@@ -174,85 +228,71 @@ const BobinaForm = () => {
             {isEdit ? 'Editar Bobina' : 'Registrar Nueva Bobina'}
           </Typography>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {success}
-            </Alert>
-          )}
-
-          {isReplace && existingBobina && (
+          {existingBobina && (
             <Alert severity="warning" sx={{ mb: 2 }}>
               <Typography variant="body1" gutterBottom>
-                Esta bobina ya tiene una fotografía registrada. ¿Desea reemplazarla?
+                ¡Esta bobina ya está registrada! ¿Desea reemplazar la información?
               </Typography>
               <Box sx={{ mt: 1 }}>
-                <Button
-                  variant="contained"
-                  color="warning"
-                  onClick={handleReplace}
-                  sx={{ mr: 1 }}
-                  disabled={loading}
-                >
+                <Button variant="contained" color="warning" onClick={handleReplace} sx={{ mr: 1 }}>
                   Sí, reemplazar
                 </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleCancelReplace}
-                  disabled={loading}
-                >
+                <Button variant="outlined" onClick={handleCancelReplace}>
                   Cancelar
                 </Button>
               </Box>
             </Alert>
           )}
 
+          <Dialog open={autorizacionDialog} onClose={() => setAutorizacionDialog(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Autorización de Líder Requerida</DialogTitle>
+            <DialogContent>
+              <Typography sx={{ mb: 2 }}>Ingrese las credenciales del líder:</Typography>
+              <TextField fullWidth label="Usuario" name="username" value={credencialesLider.username}
+                onChange={handleCredencialesChange} margin="normal" required />
+              <TextField fullWidth label="Contraseña" name="password" type="password"
+                value={credencialesLider.password} onChange={handleCredencialesChange} margin="normal" required />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setAutorizacionDialog(false)}>Cancelar</Button>
+              <Button onClick={verificarLider} variant="contained"
+                disabled={autorizando || !credencialesLider.username || !credencialesLider.password}>
+                {autorizando ? 'Verificando...' : 'Autorizar'}
+              </Button>
+            </DialogActions>
+          </Dialog>
+
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="HU de la Bobina"
-                  name="hu"
-                  value={formData.hu}
-                  onChange={handleInputChange}
-                  required
-                  disabled={isEdit || isReplace}
-                />
+                <TextField fullWidth label="HU de la Bobina" name="hu" value={formData.hu}
+                  onChange={handleInputChange} required disabled={isEdit || !!existingBobina} />
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Cliente</InputLabel>
-                  <Select
-                    name="cliente"
-                    value={formData.cliente}
-                    label="Cliente"
-                    onChange={handleInputChange}
-                  >
-                    <MenuItem value="">Seleccionar cliente</MenuItem>
-                    {clientes.map(cliente => (
-                      <MenuItem key={cliente} value={cliente}>{cliente}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {user?.role === ROLES.EMBARCADOR ? (
+                  <TextField fullWidth label="Cliente" name="cliente" value={formData.cliente}
+                    onChange={handleInputChange} placeholder="Ingrese el nombre del cliente" />
+                ) : (
+                  <FormControl fullWidth>
+                    <InputLabel>Cliente</InputLabel>
+                    <Select name="cliente" value={formData.cliente} label="Cliente" onChange={handleInputChange}>
+                      <MenuItem value="">Seleccionar cliente</MenuItem>
+                      {clientes.map(cliente => (
+                        <MenuItem key={cliente} value={cliente}>{cliente}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
               </Grid>
 
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
                   <InputLabel>Estado</InputLabel>
-                  <Select
-                    name="estado"
-                    value={formData.estado}
-                    label="Estado"
-                    onChange={handleInputChange}
-                    required
-                  >
+                  <Select name="estado" value={formData.estado} label="Estado" onChange={handleInputChange} required>
                     <MenuItem value="bueno">Bueno</MenuItem>
                     <MenuItem value="regular">Regular</MenuItem>
                     <MenuItem value="malo">Malo</MenuItem>
@@ -261,54 +301,27 @@ const BobinaForm = () => {
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  fullWidth
-                  startIcon={<CloudUploadIcon />}
-                  sx={{ height: '56px' }}
-                >
+                <Button variant="outlined" component="label" fullWidth startIcon={<CloudUploadIcon />} sx={{ height: '56px' }}>
                   Subir Fotografía
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    onChange={handleFileChange}
-                    required={!isEdit}
-                  />
+                  <input type="file" accept="image/*" hidden onChange={handleFileChange} required={!isEdit} />
                 </Button>
-                {formData.foto && (
-                  <Typography variant="caption" sx={{ ml: 1 }}>
-                    {formData.foto.name}
-                  </Typography>
-                )}
+                {formData.foto && <Typography variant="caption" sx={{ ml: 1 }}>{formData.foto.name}</Typography>}
               </Grid>
 
               {preview && (
                 <Grid item xs={12}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" gutterBottom>
-                      Vista Previa
-                    </Typography>
-                    <img
-                      src={preview}
-                      alt="Preview"
-                      style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }}
-                    />
+                    <Typography variant="h6" gutterBottom>Vista Previa</Typography>
+                    <img src={preview} alt="Preview" style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '8px' }} />
                   </Box>
                 </Grid>
               )}
 
               <Grid item xs={12}>
-                <Button
-                  type="submit"
-                  variant="contained"
+                <Button type="submit" variant="contained"
                   startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
-                  disabled={loading || isReplace}
-                  fullWidth
-                  size="large"
-                >
-                  {loading ? 'Guardando...' : isEdit ? 'Actualizar Bobina' : 'Registrar Bobina'}
+                  disabled={loading || !!existingBobina} fullWidth size="large">
+                  {loading ? 'Procesando...' : isEdit ? 'Actualizar Bobina' : 'Registrar Bobina'}
                 </Button>
               </Grid>
             </Grid>

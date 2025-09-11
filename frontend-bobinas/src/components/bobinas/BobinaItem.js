@@ -13,8 +13,9 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
+import { ROLES } from '../../utils/constants';
 
-const BobinaItem = ({ bobina, onViewDetails, onReplacePhoto }) => {
+const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
   const getEstadoColor = (estado) => {
     switch (estado) {
       case 'bueno': return 'success';
@@ -29,7 +30,7 @@ const BobinaItem = ({ bobina, onViewDetails, onReplacePhoto }) => {
       <CardMedia
         component="img"
         height="200"
-        image={`http://localhost:8000/storage/${bobina.foto_path.replace('public/', '')}`}
+        image={`http://localhost:8000/storage/${bobina.foto_path}`}
         alt={bobina.hu}
         sx={{ objectFit: 'cover' }}
       />
@@ -67,13 +68,16 @@ const BobinaItem = ({ bobina, onViewDetails, onReplacePhoto }) => {
           <ViewIcon />
         </IconButton>
         
-        <IconButton 
-          size="small" 
-          onClick={() => onReplacePhoto(bobina)}
-          color="secondary"
-        >
-          <EditIcon />
-        </IconButton>
+        {/* SOLO ADMIN puede editar */}
+        {userRole === ROLES.ADMIN && (
+          <IconButton 
+            size="small" 
+            onClick={() => onEditBobina(bobina)}
+            color="secondary"
+          >
+            <EditIcon />
+          </IconButton>
+        )}
       </Box>
     </Card>
   );

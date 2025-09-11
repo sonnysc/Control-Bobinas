@@ -16,7 +16,8 @@ import {
   Dashboard as DashboardIcon,
   Add as AddIcon,
   People as PeopleIcon,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  VerifiedUser as VerifiedIcon 
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -35,6 +36,7 @@ const Sidebar = ({ mobileOpen, onMobileToggle }) => {
       case 'AddIcon': return <AddIcon />;
       case 'PeopleIcon': return <PeopleIcon />;
       case 'SettingsIcon': return <SettingsIcon />;
+      case 'VerifiedIcon': return <VerifiedIcon />;
       default: return <DashboardIcon />;
     }
   };

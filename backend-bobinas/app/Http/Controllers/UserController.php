@@ -1,36 +1,39 @@
 <?php
+// app/Http/Controllers/UserController.php
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    //Listar usuarios
     public function index(Request $request)
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
         $query = User::query();
 
-        // Búsqueda por username si viene en la request
         if ($request->has('search') && !empty($request->search)) {
             $query->where('username', 'like', '%' . $request->search . '%');
         }
 
-    // Paginación (10 por página)
-    return response()->json(
-        $query->paginate(10)
-    );
+        return response()->json($query->paginate(10));
     }
 
-    //Crear usuario
     public function store(Request $request)
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
         $request->validate([
             'username' => 'required|string|unique:users,username',
             'password' => 'required|string|min:4',
-            'role' => 'required|string|in:admin,ingeniero,embarcador'
+            'role' => 'required|string|in:admin,ingeniero,embarcador,lider'
         ]);
 
         $user = User::create([
@@ -42,14 +45,17 @@ class UserController extends Controller
         return response()->json($user, 201);
     }
 
-    //Actualizar usuario
     public function update(Request $request, $id)
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
         $user = User::findOrFail($id);
 
         $request->validate([
             'username' => 'required|string|unique:users,username,' . $user->id,
-            'role' => 'required|string|in:admin,ingeniero,embarcador'
+            'role' => 'required|string|in:admin,ingeniero,embarcador,lider'
         ]);
 
         $user->username = $request->username;
@@ -67,9 +73,12 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    //Eliminar usuario
     public function destroy($id)
     {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
         $user = User::findOrFail($id);
         $user->delete();
 

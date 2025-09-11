@@ -11,6 +11,7 @@ import BobinaForm from './components/bobinas/BobinaForm';
 import UserList from './components/users/UserList';
 import ConfigList from './components/config/ConfigList';
 import { ROLES } from './utils/constants';
+import AutorizacionList from './components/autorizaciones/AutorizacionList';
 
 // Crear tema personalizado
 const theme = createTheme({
@@ -72,29 +73,29 @@ const theme = createTheme({
 // Componente para rutas protegidas
 const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const { user, loading } = useAuth();
-  
+
   // Mostrar nada mientras se carga la autenticación
   if (loading) {
     return null;
   }
-  
+
   // Redirigir al login si no está autenticado
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   // Redirigir al home si no tiene los roles requeridos
   if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
-  
+
   return children;
 };
 
 // Componente para redirección después del login
 const LoginRedirect = () => {
   const { user } = useAuth();
-  
+
   if (user) {
     // Redirigir basado en el rol del usuario
     switch (user.role) {
@@ -108,7 +109,7 @@ const LoginRedirect = () => {
         return <Navigate to="/" replace />;
     }
   }
-  
+
   return <Login />;
 };
 
@@ -118,7 +119,7 @@ const AppRoutes = () => {
     <Routes>
       {/* Ruta de login */}
       <Route path="/login" element={<LoginRedirect />} />
-      
+
       {/* Rutas protegidas */}
       <Route path="/" element={
         <ProtectedRoute>
@@ -127,23 +128,33 @@ const AppRoutes = () => {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
+      {/* Solo embarcadores pueden crear bobinas */}
       <Route path="/bobinas/nueva" element={
-        <ProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.EMBARCADOR]}>
+        <ProtectedRoute requiredRoles={[ROLES.EMBARCADOR]}> {/* SOLO EMBARCADOR */}
           <Layout>
             <BobinaForm />
           </Layout>
         </ProtectedRoute>
       } />
-      
+
+      {/* Solo admin puede editar */}
       <Route path="/bobinas/editar/:id" element={
-        <ProtectedRoute requiredRoles={[ROLES.ADMIN, ROLES.EMBARCADOR]}>
+        <ProtectedRoute requiredRoles={[ROLES.ADMIN]}> {/* SOLO ADMIN */}
           <Layout>
             <BobinaForm />
           </Layout>
         </ProtectedRoute>
       } />
-      
+
+      <Route path="/autorizaciones" element={
+        <ProtectedRoute requiredRoles={[ROLES.LIDER]}>
+          <Layout>
+            <AutorizacionList />
+          </Layout>
+        </ProtectedRoute>
+      } />
+
       <Route path="/usuarios" element={
         <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
@@ -151,7 +162,7 @@ const AppRoutes = () => {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       <Route path="/configuraciones" element={
         <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
@@ -159,7 +170,7 @@ const AppRoutes = () => {
           </Layout>
         </ProtectedRoute>
       } />
-      
+
       {/* Ruta por defecto - redirigir al home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -95,6 +95,7 @@ const UserForm = ({ user, onSuccess, onCancel }) => {
           <MenuItem value="admin">Administrador</MenuItem>
           <MenuItem value="ingeniero">Ingeniero</MenuItem>
           <MenuItem value="embarcador">Embarcador</MenuItem>
+          <MenuItem value="lider">Líder</MenuItem>
         </Select>
       </FormControl>
 

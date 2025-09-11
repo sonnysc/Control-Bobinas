@@ -17,22 +17,20 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
   Chip
 } from '@mui/material';
 import {
   Add as AddIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Visibility as ViewIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { bobinaService } from '../../services/bobinas';
 import BobinaItem from './BobinaItem';
+import { useAuth } from '../../context/AuthContext';
+import { ROLES } from '../../utils/constants';
 
 const BobinaList = () => {
   const [bobinas, setBobinas] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
     cliente: '',
@@ -47,22 +45,20 @@ const BobinaList = () => {
   });
   const [selectedBobina, setSelectedBobina] = useState(null);
   const [detailDialog, setDetailDialog] = useState(false);
-  
+
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadBobinas();
-    loadClientes();
-  }, [pagination.page, filters]);
+    if (user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) {
+      loadClientes();
+    }
+  }, [pagination.page, filters, user?.role]);
 
   const loadBobinas = async () => {
     try {
-      setLoading(true);
-      const params = {
-        page: pagination.page,
-        ...filters
-      };
-      
+      const params = { page: pagination.page, ...filters };
       const response = await bobinaService.getAll(params);
       setBobinas(response.data.data);
       setPagination(prev => ({
@@ -72,8 +68,6 @@ const BobinaList = () => {
       }));
     } catch (error) {
       console.error('Error loading bobinas:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -105,8 +99,11 @@ const BobinaList = () => {
     setSelectedBobina(null);
   };
 
-  const handleReplacePhoto = (bobina) => {
-    navigate(`/bobinas/editar/${bobina.id}`);
+  // SOLO ADMIN puede editar
+  const handleEditBobina = (bobina) => {
+    if (user?.role === ROLES.ADMIN) {
+      navigate(`/bobinas/editar/${bobina.id}`);
+    }
   };
 
   return (
@@ -116,7 +113,7 @@ const BobinaList = () => {
           <Typography variant="h5" gutterBottom>
             Registros de Bobinas
           </Typography>
-          
+
           <Grid container spacing={2} sx={{ mb: 2 }}>
             <Grid item xs={12} sm={6} md={3}>
               <TextField
@@ -124,26 +121,28 @@ const BobinaList = () => {
                 label="Buscar por HU o cliente"
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
-                InputProps={{
-                  endAdornment: <SearchIcon />
-                }}
+                InputProps={{ endAdornment: <SearchIcon /> }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Cliente</InputLabel>
-                <Select
-                  value={filters.cliente}
-                  label="Cliente"
-                  onChange={(e) => handleFilterChange('cliente', e.target.value)}
-                >
-                  <MenuItem value="">Todos</MenuItem>
-                  {clientes.map(cliente => (
-                    <MenuItem key={cliente} value={cliente}>{cliente}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+
+            {(user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) && (
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth>
+                  <InputLabel>Cliente</InputLabel>
+                  <Select
+                    value={filters.cliente}
+                    label="Cliente"
+                    onChange={(e) => handleFilterChange('cliente', e.target.value)}
+                  >
+                    <MenuItem value="">Todos</MenuItem>
+                    {clientes.map(cliente => (
+                      <MenuItem key={cliente} value={cliente}>{cliente}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -154,6 +153,7 @@ const BobinaList = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
+
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -164,17 +164,20 @@ const BobinaList = () => {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => navigate('/bobinas/nueva')}
-                fullWidth
-                sx={{ height: '100%' }}
-              >
-                Nueva Bobina
-              </Button>
-            </Grid>
+
+            {user?.role === ROLES.EMBARCADOR && (
+              <Grid item xs={12} sm={6} md={2}>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={() => navigate('/bobinas/nueva')}
+                  fullWidth
+                  sx={{ height: '100%' }}
+                >
+                  Nueva Bobina
+                </Button>
+              </Grid>
+            )}
           </Grid>
         </CardContent>
       </Card>
@@ -182,10 +185,11 @@ const BobinaList = () => {
       <Grid container spacing={2}>
         {bobinas.map(bobina => (
           <Grid item xs={12} sm={6} md={4} key={bobina.id}>
-            <BobinaItem 
-              bobina={bobina} 
+            <BobinaItem
+              bobina={bobina}
               onViewDetails={handleViewDetails}
-              onReplacePhoto={handleReplacePhoto}
+              onEditBobina={handleEditBobina}
+              userRole={user?.role}
             />
           </Grid>
         ))}
@@ -211,10 +215,10 @@ const BobinaList = () => {
                 <Typography variant="h6">Información</Typography>
                 <Typography><strong>HU:</strong> {selectedBobina.hu}</Typography>
                 <Typography><strong>Cliente:</strong> {selectedBobina.cliente || 'N/A'}</Typography>
-                <Typography><strong>Estado:</strong> 
-                  <Chip 
-                    label={selectedBobina.estado} 
-                    size="small" 
+                <Typography><strong>Estado:</strong>
+                  <Chip
+                    label={selectedBobina.estado}
+                    size="small"
                     color={selectedBobina.estado === 'bueno' ? 'success' : selectedBobina.estado === 'regular' ? 'warning' : 'error'}
                     sx={{ ml: 1 }}
                   />
@@ -227,8 +231,8 @@ const BobinaList = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <Typography variant="h6">Fotografía</Typography>
-                <img 
-                  src={`http://localhost:8000/storage/${selectedBobina.foto_path.replace('public/', '')}`} 
+                <img
+                  src={`http://localhost:8000/storage/${selectedBobina.foto_path}`}
                   alt={selectedBobina.hu}
                   style={{ width: '100%', borderRadius: '8px' }}
                 />

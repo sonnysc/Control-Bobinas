@@ -2,19 +2,22 @@
 export const ROLES = {
   ADMIN: 'admin',
   INGENIERO: 'ingeniero',
-  EMBARCADOR: 'embarcador'
+  EMBARCADOR: 'embarcador',
+  LIDER: 'lider' // Nuevo rol
 };
 
 export const ROLE_LABELS = {
   [ROLES.ADMIN]: 'Administrador',
   [ROLES.INGENIERO]: 'Ingeniero',
-  [ROLES.EMBARCADOR]: 'Embarcador'
+  [ROLES.EMBARCADOR]: 'Embarcador',
+  [ROLES.LIDER]: 'Líder' // Nuevo label
 };
 
 export const ROLE_COLORS = {
   [ROLES.ADMIN]: 'error',
   [ROLES.INGENIERO]: 'warning',
-  [ROLES.EMBARCADOR]: 'success'
+  [ROLES.EMBARCADOR]: 'success',
+  [ROLES.LIDER]: 'info' // Nuevo color
 };
 
 export const ESTADOS_BOBINA = {
@@ -39,8 +42,9 @@ export const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8
 export const APP_NAME = process.env.REACT_APP_APP_NAME || 'Control de Embarcaciones';
 
 export const MENU_ITEMS = [
-  { text: 'Inicio', icon: 'DashboardIcon', path: '/', roles: [ROLES.ADMIN, ROLES.INGENIERO, ROLES.EMBARCADOR] },
-  { text: 'Nueva Bobina', icon: 'AddIcon', path: '/bobinas/nueva', roles: [ROLES.ADMIN, ROLES.EMBARCADOR] },
+  { text: 'Inicio', icon: 'DashboardIcon', path: '/', roles: [ROLES.ADMIN, ROLES.INGENIERO, ROLES.EMBARCADOR, ROLES.LIDER] },
+  { text: 'Nueva Bobina', icon: 'AddIcon', path: '/bobinas/nueva', roles: [ROLES.EMBARCADOR] },
+  { text: 'Autorizaciones', icon: 'VerifiedIcon', path: '/autorizaciones', roles: [ROLES.LIDER] }, // Nueva ruta
   { text: 'Usuarios', icon: 'PeopleIcon', path: '/usuarios', roles: [ROLES.ADMIN] },
   { text: 'Configuraciones', icon: 'SettingsIcon', path: '/configuraciones', roles: [ROLES.ADMIN] }
 ];
