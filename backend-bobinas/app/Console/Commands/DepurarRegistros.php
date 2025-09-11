@@ -17,41 +17,46 @@ class DepurarRegistros extends Command
     public function handle()
     {
         $configuraciones = Configuracion::all();
-        
+
+        // Depuración por clientes con configuración
         foreach ($configuraciones as $config) {
             $fechaLimite = Carbon::now()->subDays($config->dias_retencion);
-            
+
             $bobinas = Bobina::where('cliente', $config->cliente)
-                            ->where('fecha_embarque', '<', $fechaLimite)
-                            ->get();
-            
+                ->where(function($query) use ($fechaLimite) {
+                    $query->where('fecha_embarque', '<', $fechaLimite)
+                          ->orWhere('fecha_reemplazo', '<', $fechaLimite);
+                })
+                ->get();
+
             foreach ($bobinas as $bobina) {
-                // Eliminar imagen
                 if ($bobina->foto_path && Storage::exists($bobina->foto_path)) {
                     Storage::delete($bobina->foto_path);
                 }
-                
-                // Eliminar registro
                 $bobina->delete();
             }
-            
+
             $this->info("Eliminadas " . count($bobinas) . " bobinas del cliente " . $config->cliente);
         }
-        
-        // Para clientes sin configuración específica, usar el valor por defecto (90 días)
+
+        // Depuración para clientes sin configuración (valor por defecto: 90 días)
         $fechaLimiteDefault = Carbon::now()->subDays(90);
+
         $bobinasDefault = Bobina::whereNotIn('cliente', $configuraciones->pluck('cliente'))
-                                ->orWhereNull('cliente')
-                                ->where('fecha_embarque', '<', $fechaLimiteDefault)
-                                ->get();
-        
+            ->orWhereNull('cliente')
+            ->where(function($query) use ($fechaLimiteDefault) {
+                $query->where('fecha_embarque', '<', $fechaLimiteDefault)
+                      ->orWhere('fecha_reemplazo', '<', $fechaLimiteDefault);
+            })
+            ->get();
+
         foreach ($bobinasDefault as $bobina) {
             if ($bobina->foto_path && Storage::exists($bobina->foto_path)) {
                 Storage::delete($bobina->foto_path);
             }
             $bobina->delete();
         }
-        
+
         $this->info("Eliminadas " . count($bobinasDefault) . " bobinas con configuración por defecto");
     }
 }

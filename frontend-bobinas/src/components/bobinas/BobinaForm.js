@@ -1,5 +1,5 @@
 // src/components/bobinas/BobinaForm.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -28,13 +28,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { bobinaService } from '../../services/bobinas';
 import { useAuth } from '../../context/AuthContext';
 import { ROLES } from '../../utils/constants';
-import { authService } from '../../services/auth';
 
 const BobinaForm = () => {
   const [formData, setFormData] = useState({
     hu: '',
     cliente: '',
-    estado: 'bueno',
     foto: null
   });
   const [preview, setPreview] = useState(null);
@@ -55,6 +53,21 @@ const BobinaForm = () => {
   const isEdit = Boolean(id);
   const { user } = useAuth();
 
+  const loadBobina = useCallback(async () => {
+    try {
+      const response = await bobinaService.getById(id);
+      const bobina = response.data;
+      setFormData({
+        hu: bobina.hu,
+        cliente: bobina.cliente || '',
+        foto: null
+      });
+      setPreview(`http://localhost:8000/storage/${bobina.foto_path}`);
+    } catch (error) {
+      setError('Error al cargar la bobina');
+    }
+  }, [id]);
+
   useEffect(() => {
     if (user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) {
       loadClientes();
@@ -62,23 +75,7 @@ const BobinaForm = () => {
     if (isEdit && user?.role === ROLES.ADMIN) {
       loadBobina();
     }
-  }, [isEdit, id, user?.role]);
-
-  const loadBobina = async () => {
-    try {
-      const response = await bobinaService.getById(id);
-      const bobina = response.data;
-      setFormData({
-        hu: bobina.hu,
-        cliente: bobina.cliente || '',
-        estado: bobina.estado,
-        foto: null
-      });
-      setPreview(`http://localhost:8000/storage/${bobina.foto_path}`);
-    } catch (error) {
-      setError('Error al cargar la bobina');
-    }
-  };
+  }, [isEdit, id, user?.role, loadBobina]);
 
   const loadClientes = async () => {
     try {
@@ -106,15 +103,9 @@ const BobinaForm = () => {
 
   const verificarLider = async () => {
     setAutorizando(true);
+    setError('');
     try {
-      const response = await authService.login(credencialesLider);
-      if (response.data.role === ROLES.LIDER) {
-        await ejecutarReemplazo();
-      } else {
-        setError('El usuario no tiene permisos de líder');
-      }
-    } catch (error) {
-      setError('Credenciales incorrectas');
+      await ejecutarReemplazo();
     } finally {
       setAutorizando(false);
     }
@@ -122,14 +113,20 @@ const BobinaForm = () => {
 
   const ejecutarReemplazo = async () => {
     try {
-      // Verificar que existingBobina tenga ID
-      if (!existingBobina || !existingBobina.id) {
-        setError('No se pudo identificar la bobina a reemplazar');
-        return;
+      const formDataToSend = new FormData();
+      formDataToSend.append('hu', formData.hu);
+      formDataToSend.append('cliente', formData.cliente || '');
+      formDataToSend.append('lider_username', credencialesLider.username);
+      formDataToSend.append('lider_password', credencialesLider.password);
+      formDataToSend.append('reemplazado_por', user?.id);
+
+      if (formData.foto) {
+        formDataToSend.append('foto', formData.foto);
       }
 
-      await bobinaService.update(existingBobina.id, formData);
-      setSuccess('Bobina reemplazada correctamente');
+      await bobinaService.create(formDataToSend);
+
+      setSuccess('Bobina reemplazada correctamente con autorización de líder');
       setAutorizacionDialog(false);
       setExistingBobina(null);
 
@@ -150,26 +147,51 @@ const BobinaForm = () => {
     try {
       if (isEdit) {
         if (user?.role === ROLES.ADMIN) {
-          await bobinaService.update(id, formData);
+          const formDataToSend = new FormData();
+          formDataToSend.append('hu', formData.hu);
+          formDataToSend.append('cliente', formData.cliente || '');
+          formDataToSend.append('_method', 'PUT');
+
+          if (formData.foto) {
+            formDataToSend.append('foto', formData.foto);
+          }
+
+          await bobinaService.update(id, formDataToSend);
           setSuccess('Bobina actualizada correctamente');
         }
       } else {
+        const formDataToSend = new FormData();
+        formDataToSend.append('hu', formData.hu);
+        formDataToSend.append('cliente', formData.cliente || '');
+        if (formData.foto) {
+          formDataToSend.append('foto', formData.foto);
+        }
+
         try {
-          await bobinaService.create(formData);
+          await bobinaService.create(formDataToSend);
           setSuccess('Bobina registrada correctamente');
           setTimeout(() => navigate('/'), 1500);
         } catch (error) {
-          // Manejar error de HU duplicado
           if (error.response?.status === 422 || error.response?.status === 409) {
+            console.log("Error detectado:", error.response.data);
+
             const errorData = error.response.data;
 
-            if (errorData.errors?.hu || errorData.message?.includes('already been taken')) {
-              // Buscar la bobina existente por HU
+            if (
+              errorData.errors?.hu ||
+              errorData.exists ||
+              (errorData.message && (
+                errorData.message.includes('already been taken') ||
+                errorData.message.includes('fotografía registrada')
+              ))
+            ) {
               try {
                 const response = await bobinaService.getAll({ search: formData.hu });
                 if (response.data.data.length > 0) {
                   const bobinaExistente = response.data.data[0];
                   setExistingBobina(bobinaExistente);
+                  console.log("✅ Abriendo modal de líder...", bobinaExistente);
+                  setAutorizacionDialog(true);
                 } else {
                   setError('Bobina encontrada pero no se pudo obtener información completa');
                 }
@@ -205,6 +227,7 @@ const BobinaForm = () => {
     setCredencialesLider(prev => ({ ...prev, [name]: value }));
   };
 
+  // Mover esta verificación dentro del return principal
   if (isEdit && user?.role !== ROLES.ADMIN) {
     return (
       <Box>
@@ -287,17 +310,6 @@ const BobinaForm = () => {
                     </Select>
                   </FormControl>
                 )}
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Estado</InputLabel>
-                  <Select name="estado" value={formData.estado} label="Estado" onChange={handleInputChange} required>
-                    <MenuItem value="bueno">Bueno</MenuItem>
-                    <MenuItem value="regular">Regular</MenuItem>
-                    <MenuItem value="malo">Malo</MenuItem>
-                  </Select>
-                </FormControl>
               </Grid>
 
               <Grid item xs={12} md={6}>
