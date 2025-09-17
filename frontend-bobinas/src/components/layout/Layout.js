@@ -20,14 +20,18 @@ const Layout = ({ children }) => {
         component="main"
         sx={{ 
           flexGrow: 1, 
-          p: 3, 
-          width: { sm: `calc(100% - 240px)` },
-          ml: { sm: `240px` }
+          p: 3,
+          width: '100%', // Ancho completo siempre
+          ml: 0, // Sin margen izquierdo
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center' // Centrar contenido horizontalmente
         }}
       >
         {/* Espacio para el header fijo */}
-        <Box sx={{ mt: 8 }} />
-        {children}
+        <Box sx={{ mt: 8, width: '100%', maxWidth: '1200px' }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );

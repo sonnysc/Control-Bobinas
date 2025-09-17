@@ -7,6 +7,12 @@ use App\Http\Controllers\BobinaController;
 use App\Http\Controllers\ConfiguracionController;
 use Illuminate\Support\Facades\Route;
 
+
+// Rutas de Sanctum para CSRF
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['message' => 'CSRF cookie set']);
+});
+
 // Auth - SIN middleware
 Route::post('/login', [AuthController::class, 'login']);
 

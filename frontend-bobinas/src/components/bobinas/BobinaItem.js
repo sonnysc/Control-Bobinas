@@ -3,7 +3,6 @@ import React from 'react';
 import {
   Card,
   CardContent,
-  CardMedia,
   Typography,
   Chip,
   IconButton,
@@ -28,17 +27,46 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
   };
 
   return (
-    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Card sx={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      transition: 'transform 0.2s',
+      '&:hover': {
+        transform: 'scale(1.02)',
+        boxShadow: 3
+      }
+    }}>
       {bobina.foto_path ? (
-        <CardMedia
-          component="img"
-          height="200"
-          image={`http://localhost:8000/storage/${bobina.foto_path}`}
-          alt={bobina.hu || 'Bobina'}
-          sx={{ objectFit: 'cover' }}
-        />
+        <Box sx={{ 
+          width: '100%', 
+          height: 200, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden',
+          backgroundColor: '#f0f0f0'
+        }}>
+          <img
+            src={`http://localhost:8000/storage/${bobina.foto_path}`}
+            alt={bobina.hu || 'Bobina'}
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              objectFit: 'contain', // Mantener relación de aspecto
+              width: 'auto',
+              height: 'auto'
+            }}
+          />
+        </Box>
       ) : (
-        <Box sx={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#f0f0f0' }}>
+        <Box sx={{ 
+          height: 200, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          bgcolor: '#f0f0f0' 
+        }}>
           <Typography variant="subtitle1" color="text.secondary">No hay foto</Typography>
         </Box>
       )}

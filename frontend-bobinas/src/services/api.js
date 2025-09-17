@@ -1,10 +1,11 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
 const api = axios.create({
-  baseURL: `${API_BASE_URL}/api`,
+  baseURL: '/api', // Ruta relativa
+  withCredentials: true,
 });
 
 // Interceptor para agregar el token a las requests
@@ -14,6 +15,8 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Asegurar que withCredentials se mantenga
+    config.withCredentials = true;
     return config;
   },
   (error) => {

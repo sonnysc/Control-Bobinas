@@ -100,11 +100,11 @@ const LoginRedirect = () => {
     // Redirigir basado en el rol del usuario
     switch (user.role) {
       case ROLES.ADMIN:
-        return <Navigate to="/" replace />;
       case ROLES.INGENIERO:
+      case ROLES.LIDER:
         return <Navigate to="/" replace />;
       case ROLES.EMBARCADOR:
-        return <Navigate to="/" replace />;
+        return <Navigate to="/bobinas/nueva" replace />;
       default:
         return <Navigate to="/" replace />;
     }
@@ -113,8 +113,10 @@ const LoginRedirect = () => {
   return <Login />;
 };
 
-// Componente principal de rutas
+// Componente principal de rutas - MOVER useAuth DENTRO de este componente
 const AppRoutes = () => {
+  const { user } = useAuth(); // <-- MOVER useAuth AQUÍ
+
   return (
     <Routes>
       {/* Ruta de login */}
@@ -124,14 +126,18 @@ const AppRoutes = () => {
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
-            <BobinaList />
+            {user?.role === ROLES.EMBARCADOR ? (
+              <Navigate to="/bobinas/nueva" replace />
+            ) : (
+              <BobinaList />
+            )}
           </Layout>
         </ProtectedRoute>
       } />
 
       {/* Solo embarcadores pueden crear bobinas */}
       <Route path="/bobinas/nueva" element={
-        <ProtectedRoute requiredRoles={[ROLES.EMBARCADOR]}> {/* SOLO EMBARCADOR */}
+        <ProtectedRoute requiredRoles={[ROLES.EMBARCADOR]}>
           <Layout>
             <BobinaForm />
           </Layout>
@@ -140,7 +146,7 @@ const AppRoutes = () => {
 
       {/* Solo admin puede editar */}
       <Route path="/bobinas/editar/:id" element={
-        <ProtectedRoute requiredRoles={[ROLES.ADMIN]}> {/* SOLO ADMIN */}
+        <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
             <BobinaForm />
           </Layout>

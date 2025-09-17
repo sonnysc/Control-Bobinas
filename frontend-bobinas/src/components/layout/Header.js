@@ -38,8 +38,9 @@ const Header = ({ onMenuToggle }) => {
     <AppBar
       position="fixed"
       sx={{
-        width: { sm: `calc(100% - 240px)` },
-        ml: { sm: `240px` },
+        width: '100%', // Ancho completo
+        left: 0, // Alineado a la izquierda
+        zIndex: (theme) => theme.zIndex.drawer + 1 // Asegurar que esté sobre el sidebar
       }}
     >
       <Toolbar>
@@ -48,7 +49,7 @@ const Header = ({ onMenuToggle }) => {
           aria-label="open drawer"
           edge="start"
           onClick={onMenuToggle}
-          sx={{ mr: 2, display: { sm: 'none' } }}
+          sx={{ mr: 2, display: { sm: 'none' } }} // Solo mostrar en móvil
         >
           <MenuIcon />
         </IconButton>
