@@ -355,7 +355,7 @@ const BobinaList = () => {
                     overflow: 'hidden'
                   }}>
                     <img
-                      src={`http://localhost:8000/storage/${selectedBobina.foto_path}`}
+                      src={`${process.env.REACT_APP_BACKEND_URL}/storage/${selectedBobina.foto_path}`}
                       alt={selectedBobina.hu}
                       style={{
                         maxWidth: '100%',

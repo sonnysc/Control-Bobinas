@@ -120,11 +120,52 @@ const BobinaForm = () => {
         cliente: bobina.cliente || '',
         foto: null
       });
-      setPreview(`http://localhost:8000/storage/${bobina.foto_path}`);
+      setPreview(`${process.env.REACT_APP_BACKEND_URL}/storage/${bobina.foto_path}`);
     } catch (error) {
       setError('Error al cargar la bobina');
     }
   }, [id]);
+
+  const [confirmReplacementDialog, setConfirmReplacementDialog] = useState(false);
+  const [lastUsedCliente, setLastUsedCliente] = useState('');
+
+  // Estilos consistentes para modales
+  const modalStyles = {
+    paper: {
+      borderRadius: '16px',
+      boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+      overflow: 'hidden'
+    },
+    header: {
+      backgroundColor: '#2196f3',
+      color: 'white',
+      textAlign: 'center',
+      py: 3,
+      fontSize: '1.2rem',
+      fontWeight: 600,
+      position: 'relative'
+    },
+    closeButton: {
+      position: 'absolute',
+      right: 8,
+      top: 8,
+      color: 'white',
+      backgroundColor: 'rgba(255,255,255,0.1)',
+      backdropFilter: 'blur(10px)',
+      '&:hover': {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        transform: 'scale(1.1)'
+      },
+      transition: 'all 0.2s ease'
+    },
+    button: {
+      borderRadius: '8px',
+      px: 3,
+      py: 1,
+      fontWeight: 600
+    }
+  };
+
 
   useEffect(() => {
     if (user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) {
@@ -135,6 +176,12 @@ const BobinaForm = () => {
     }
 
     checkCameraPermission();
+
+    const savedCliente = localStorage.getItem('lastUsedCliente');
+    if (savedCliente && !isEdit) {
+      setFormData(prev => ({ ...prev, cliente: savedCliente }));
+      setLastUsedCliente(savedCliente);
+    }
 
     return () => {
       stopScanner();
@@ -151,9 +198,21 @@ const BobinaForm = () => {
     }
   };
 
+  const saveLastUsedCliente = (cliente) => {
+    if (cliente && cliente.trim()) {
+      localStorage.setItem('lastUsedCliente', cliente.trim());
+      setLastUsedCliente(cliente.trim());
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Guardar cliente cuando cambie
+    if (name === 'cliente' && value.trim()) {
+      saveLastUsedCliente(value);
+    }
   };
 
   // Función para verificar el aspect ratio
@@ -379,6 +438,9 @@ const BobinaForm = () => {
       formDataToSend.append('lider_password', credencialesLider.password);
       formDataToSend.append('reemplazado_por', user?.id);
 
+      // Guardar cliente usado
+      saveLastUsedCliente(formData.cliente);
+
       if (formData.foto instanceof File) {
         formDataToSend.append('foto', formData.foto);
       }
@@ -390,6 +452,8 @@ const BobinaForm = () => {
       setExistingBobina(null);
       setCredencialesLider({ username: '', password: '' });
 
+      // Mantener el cliente para la siguiente bobina
+      const clienteUsado = formData.cliente;
       setTimeout(() => {
         navigate('/');
       }, 1500);
@@ -416,6 +480,9 @@ const BobinaForm = () => {
       formDataToSend.append('hu', formData.hu);
       formDataToSend.append('cliente', formData.cliente || '');
 
+      // Guardar cliente usado
+      saveLastUsedCliente(formData.cliente);
+
       if (isEdit) {
         formDataToSend.append('_method', 'PUT');
       }
@@ -441,7 +508,8 @@ const BobinaForm = () => {
                 if (response.data.data.length > 0) {
                   const bobinaExistente = response.data.data[0];
                   setExistingBobina(bobinaExistente);
-                  setAutorizacionDialog(true);
+                  // MOSTRAR MODAL DE CONFIRMACIÓN EN LUGAR DE AUTORIZACIÓN DIRECTA
+                  setConfirmReplacementDialog(true);
                 } else {
                   setError('Bobina encontrada pero no se pudo obtener información completa');
                 }
@@ -475,6 +543,34 @@ const BobinaForm = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmReplacement = () => {
+    setConfirmReplacementDialog(false);
+    setAutorizacionDialog(true);
+  };
+
+  const handleCancelReplacement = () => {
+    setConfirmReplacementDialog(false);
+    setExistingBobina(null);
+    setFormData(prev => ({
+      ...prev,
+      hu: '',
+      // Mantener el cliente seleccionado
+      cliente: lastUsedCliente || prev.cliente
+    }));
+  };
+
+  const resetFormKeepingClient = () => {
+    const clienteActual = formData.cliente || lastUsedCliente;
+    setFormData({
+      hu: '',
+      cliente: clienteActual,
+      foto: null
+    });
+    setPreview(null);
+    setError('');
+    setSuccess('');
   };
 
   const handleReplace = () => {
@@ -598,98 +694,202 @@ const BobinaForm = () => {
           {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
           {qrError && <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setQrError('')}>{qrError}</Alert>}
 
-          {existingBobina && (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              <Typography variant="body1" gutterBottom>
-                ¡Esta bobina ya está registrada! ¿Desea reemplazar la información?
-              </Typography>
-              <Box sx={{ mt: 1 }}>
-                <Button variant="contained" color="warning" onClick={handleReplace} sx={{ mr: 1 }}>
-                  Sí, reemplazar
-                </Button>
-                <Button variant="outlined" onClick={handleCancelReplace}>
-                  Cancelar
-                </Button>
-              </Box>
-            </Alert>
-          )}
-
           {/* Diálogo de cámara para tomar foto */}
           <Dialog
             open={cameraDialogOpen}
             onClose={stopCamera}
             maxWidth="sm"
             fullWidth
+            fullScreen={isMobile}
             PaperProps={{
               sx: {
-                backgroundColor: 'black',
+                backgroundColor: '#000',
                 overflow: 'hidden',
-                borderRadius: '16px',
-                maxWidth: '400px'
+                borderRadius: isMobile ? 0 : '20px',
+                maxWidth: isMobile ? '100%' : '450px',
+                maxHeight: isMobile ? '100%' : '90vh',
+                margin: isMobile ? 0 : 'auto'
               }
             }}
           >
+            {/* Header mejorado */}
             <DialogTitle sx={{
               color: 'white',
               textAlign: 'center',
-              pb: 1,
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              borderBottom: '1px solid rgba(255,255,255,0.1)'
+              py: 2,
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%)',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              position: 'relative',
+              zIndex: 10
             }}>
-              <Typography variant="h6">Tomar Foto de la Bobina</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                📸 Fotografía de Bobina
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)', display: 'block' }}>
+                Centra la bobina en el marco cuadrado
+              </Typography>
+
+              {/* Botón de cerrar elegante */}
+              <IconButton
+                onClick={stopCamera}
+                sx={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 8,
+                  color: 'white',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(10px)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
             </DialogTitle>
+
             <DialogContent sx={{
               p: 0,
               position: 'relative',
-              minHeight: '500px',
+              minHeight: isMobile ? 'calc(100vh - 140px)' : '500px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
-              alignItems: 'center'
+              alignItems: 'center',
+              backgroundColor: '#000'
             }}>
               {cameraError ? (
                 <Box sx={{
                   display: 'flex',
                   justifyContent: 'center',
                   alignItems: 'center',
-                  height: '400px',
+                  height: '100%',
                   color: 'white',
                   flexDirection: 'column',
-                  padding: 2
+                  padding: 3,
+                  textAlign: 'center'
                 }}>
-                  <Typography color="error" align="center">{cameraError}</Typography>
-                  <Button onClick={stopCamera} sx={{ mt: 2 }} variant="contained">
-                    Cerrar
-                  </Button>
+                  <Box sx={{
+                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    border: '2px solid rgba(244, 67, 54, 0.3)',
+                    borderRadius: '16px',
+                    padding: 3,
+                    maxWidth: '300px'
+                  }}>
+                    <Typography variant="h6" sx={{ color: '#f44336', mb: 2 }}>
+                      ⚠️ Error de Cámara
+                    </Typography>
+                    <Typography color="rgba(255,255,255,0.8)" sx={{ mb: 3, lineHeight: 1.6 }}>
+                      {cameraError}
+                    </Typography>
+                    <Button
+                      onClick={stopCamera}
+                      variant="contained"
+                      sx={{
+                        backgroundColor: '#f44336',
+                        '&:hover': { backgroundColor: '#d32f2f' },
+                        borderRadius: '12px',
+                        px: 3
+                      }}
+                    >
+                      Cerrar
+                    </Button>
+                  </Box>
                 </Box>
               ) : (
                 <>
-                  {/* Marco de guía 1:1 mejorado */}
+                  {/* Marco de guía 1:1 ultra mejorado */}
                   <Box sx={{
                     position: 'absolute',
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: '320px',
-                    height: '320px',
-                    border: '3px solid rgba(255,255,255,0.8)',
-                    borderRadius: '12px',
+                    width: isMobile ? '280px' : '320px',
+                    height: isMobile ? '280px' : '320px',
                     zIndex: 10,
-                    pointerEvents: 'none',
-                    boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)',
-                    '&::before': {
-                      content: '""',
+                    pointerEvents: 'none'
+                  }}>
+                    {/* Overlay oscuro */}
+                    <Box sx={{
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      width: '280px',
-                      height: '280px',
-                      border: '2px dashed rgba(255,255,255,0.5)',
-                      borderRadius: '8px'
-                    }
-                  }} />
+                      width: '150vw',
+                      height: '150vh',
+                      background: 'radial-gradient(circle, transparent 40%, rgba(0,0,0,0.6) 41%)',
+                      borderRadius: '20px'
+                    }} />
 
+                    {/* Marco principal */}
+                    <Box sx={{
+                      width: '100%',
+                      height: '100%',
+                      border: '3px solid #fff',
+                      borderRadius: '16px',
+                      position: 'relative',
+                      boxShadow: '0 0 20px rgba(255,255,255,0.3)',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: 'calc(100% - 40px)',
+                        height: 'calc(100% - 40px)',
+                        border: '2px dashed rgba(255,255,255,0.6)',
+                        borderRadius: '12px'
+                      }
+                    }}>
+                      {/* Esquinas decorativas */}
+                      {[
+                        { top: -8, left: -8 },
+                        { top: -8, right: -8 },
+                        { bottom: -8, left: -8 },
+                        { bottom: -8, right: -8 }
+                      ].map((pos, i) => (
+                        <Box key={i} sx={{
+                          position: 'absolute',
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: '#fff',
+                          borderRadius: '4px',
+                          ...pos
+                        }} />
+                      ))}
+                    </Box>
+
+                    {/* Indicador de enfoque animado */}
+                    <Box sx={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '24px',
+                      height: '24px',
+                      border: '2px solid #4CAF50',
+                      borderRadius: '50%',
+                      animation: 'pulse 2s infinite',
+                      '@keyframes pulse': {
+                        '0%': {
+                          opacity: 1,
+                          transform: 'translate(-50%, -50%) scale(1)'
+                        },
+                        '50%': {
+                          opacity: 0.5,
+                          transform: 'translate(-50%, -50%) scale(1.2)'
+                        },
+                        '100%': {
+                          opacity: 1,
+                          transform: 'translate(-50%, -50%) scale(1)'
+                        }
+                      }
+                    }} />
+                  </Box>
+
+                  {/* Video de la cámara */}
                   <video
                     ref={cameraVideoRef}
                     autoPlay
@@ -699,90 +899,336 @@ const BobinaForm = () => {
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
-                      minHeight: '500px'
+                      minHeight: isMobile ? 'calc(100vh - 200px)' : '500px'
                     }}
                   />
 
-                  {/* Controles de cámara */}
+                  {/* Instrucciones flotantes mejoradas */}
                   <Box sx={{
                     position: 'absolute',
-                    bottom: 20,
+                    top: isMobile ? 80 : 90,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    textAlign: 'center',
+                    color: 'white',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    backdropFilter: 'blur(10px)',
+                    padding: '12px 20px',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    maxWidth: '90%',
+                    zIndex: 5
+                  }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
+                      🎯 Centra la bobina dentro del marco
+                    </Typography>
+                    <Typography variant="caption" sx={{
+                      color: 'rgba(255,255,255,0.8)',
+                      display: 'block',
+                      mt: 0.5
+                    }}>
+                      Asegúrate de que esté bien iluminada
+                    </Typography>
+                  </Box>
+
+                  {/* Panel de controles rediseñado */}
+                  <Box sx={{
+                    position: 'absolute',
+                    bottom: 0,
                     left: 0,
                     right: 0,
+                    background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0.95) 100%)',
+                    backdropFilter: 'blur(20px)',
+                    padding: isMobile ? '30px 20px 40px' : '30px 20px',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    gap: 3,
-                    padding: 2,
-                    backgroundColor: 'rgba(0,0,0,0.5)',
-                    backdropFilter: 'blur(10px)'
+                    gap: 4,
+                    minHeight: isMobile ? '140px' : '120px'
                   }}>
-                    <IconButton
-                      onClick={toggleCamera}
-                      sx={{
-                        color: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
-                      }}
-                    >
-                      <FlipCameraIcon />
-                    </IconButton>
+                    {/* Botón principal de captura */}
+                    <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      {/* Anillo exterior animado */}
+                      <Box sx={{
+                        position: 'absolute',
+                        width: '84px',
+                        height: '84px',
+                        borderRadius: '50%',
+                        border: '3px solid rgba(255,255,255,0.3)',
+                        animation: 'rotate 10s linear infinite',
+                        '@keyframes rotate': {
+                          from: { transform: 'rotate(0deg)' },
+                          to: { transform: 'rotate(360deg)' }
+                        }
+                      }} />
 
-                    <IconButton
-                      onClick={takePhoto}
-                      sx={{
-                        backgroundColor: 'white',
-                        width: 64,
-                        height: 64,
-                        '&:hover': {
-                          backgroundColor: '#f5f5f5',
-                          transform: 'scale(1.1)'
-                        },
-                        transition: 'transform 0.2s'
-                      }}
-                    >
-                      <CameraIcon sx={{ fontSize: 32, color: 'black' }} />
-                    </IconButton>
+                      {/* Botón de captura */}
+                      <IconButton
+                        onClick={takePhoto}
+                        sx={{
+                          width: 72,
+                          height: 72,
+                          backgroundColor: '#fff',
+                          color: '#000',
+                          boxShadow: '0 4px 20px rgba(255,255,255,0.3), inset 0 2px 4px rgba(0,0,0,0.1)',
+                          border: '4px solid rgba(255,255,255,0.9)',
+                          zIndex: 2,
+                          '&:hover': {
+                            backgroundColor: '#f5f5f5',
+                            transform: 'scale(1.1)',
+                            boxShadow: '0 6px 25px rgba(255,255,255,0.4)'
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)'
+                          },
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <CameraIcon sx={{ fontSize: 32 }} />
+                      </IconButton>
+                    </Box>
 
-                    <IconButton
-                      onClick={stopCamera}
-                      sx={{
-                        color: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.2)',
-                        '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' }
-                      }}
-                    >
-                      <CloseIcon />
-                    </IconButton>
+                    {/* Información adicional */}
+                    <Box sx={{
+                      position: 'absolute',
+                      bottom: 8,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" sx={{
+                        color: 'rgba(255,255,255,0.6)',
+                        fontSize: '12px'
+                      }}>
+                        Toca el círculo blanco para capturar
+                      </Typography>
+                    </Box>
                   </Box>
 
-                  {/* Instrucciones */}
+                  {/* Indicadores de estado */}
                   <Box sx={{
                     position: 'absolute',
-                    top: 70,
-                    left: 0,
-                    right: 0,
-                    textAlign: 'center',
-                    color: 'white',
-                    backgroundColor: 'rgba(0,0,0,0.6)',
-                    padding: 1,
-                    fontSize: '14px'
+                    top: 20,
+                    left: 20,
+                    display: 'flex',
+                    gap: 1,
+                    zIndex: 5
                   }}>
-                    <Typography variant="body2">
-                      Encuadra la bobina dentro del marco 1:1
-                    </Typography>
+                    {/* Indicador de cámara activa */}
+                    <Box sx={{
+                      backgroundColor: 'rgba(76, 175, 80, 0.9)',
+                      color: 'white',
+                      padding: '6px 12px',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      backdropFilter: 'blur(10px)'
+                    }}>
+                      <Box sx={{
+                        width: 8,
+                        height: 8,
+                        backgroundColor: '#4CAF50',
+                        borderRadius: '50%',
+                        animation: 'blink 1.5s infinite',
+                        '@keyframes blink': {
+                          '0%, 50%': { opacity: 1 },
+                          '51%, 100%': { opacity: 0.3 }
+                        }
+                      }} />
+                      CÁMARA ACTIVA
+                    </Box>
+                  </Box>
+
+                  {/* Indicador de formato 1:1 */}
+                  <Box sx={{
+                    position: 'absolute',
+                    top: 20,
+                    right: 20,
+                    backgroundColor: 'rgba(33, 150, 243, 0.9)',
+                    color: 'white',
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 5
+                  }}>
                   </Box>
                 </>
               )}
             </DialogContent>
           </Dialog>
 
-          <Dialog open={autorizacionDialog} onClose={() => setAutorizacionDialog(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Autorización de Líder Requerida</DialogTitle>
-            <DialogContent>
-              <Typography sx={{ mb: 2 }}>
-                Para reemplazar una bobina existente, se requiere la autorización de un líder.
+          {/* Modal de Confirmación de Reemplazo */}
+          <Dialog
+            open={confirmReplacementDialog}
+            onClose={handleCancelReplacement}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+              sx: {
+                borderRadius: '16px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+              }
+            }}
+          >
+            <DialogTitle sx={{
+              backgroundColor: '#ff9800',
+              color: 'white',
+              textAlign: 'center',
+              py: 3,
+              fontSize: '1.2rem',
+              fontWeight: 600
+            }}>
+              ⚠️ Bobina ya Registrada
+            </DialogTitle>
+
+            <DialogContent sx={{ py: 3 }}>
+              <Alert severity="warning" sx={{ mb: 3 }}>
+                <Typography variant="body1" gutterBottom>
+                  <strong>HU {formData.hu}</strong> ya está registrada en el sistema.
+                </Typography>
+              </Alert>
+
+              {existingBobina && (
+                <Box sx={{
+                  backgroundColor: '#f5f5f5',
+                  padding: 2,
+                  borderRadius: '8px',
+                  mb: 3
+                }}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Información actual:
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Cliente:</strong> {existingBobina.cliente || 'No especificado'}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Registrada:</strong> {new Date(existingBobina.created_at).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Por:</strong> {existingBobina.user?.name || 'Usuario desconocido'}
+                  </Typography>
+                </Box>
+              )}
+
+              <Typography variant="body1" sx={{ mb: 2, textAlign: 'center' }}>
+                ¿Desea <strong>reemplazar</strong> esta bobina con la nueva información?
               </Typography>
+
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>Nota:</strong> Para reemplazar una bobina existente se requiere autorización de un líder.
+                </Typography>
+              </Alert>
+            </DialogContent>
+
+            <DialogActions sx={{ p: 3, gap: 1 }}>
+              <Button
+                onClick={handleCancelReplacement}
+                variant="outlined"
+                sx={{
+                  borderRadius: '8px',
+                  px: 3,
+                  py: 1
+                }}
+              >
+                ✕ Cancelar
+              </Button>
+
+              <Button
+                onClick={handleConfirmReplacement}
+                variant="contained"
+                color="warning"
+                sx={{
+                  borderRadius: '8px',
+                  px: 3,
+                  py: 1,
+                  fontWeight: 600
+                }}
+              >
+                🔄 Sí, Reemplazar
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+
+          <Dialog
+            open={autorizacionDialog}
+            onClose={() => setAutorizacionDialog(false)}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+              sx: {
+                borderRadius: '16px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+                overflow: 'hidden'
+              }
+            }}
+          >
+            {/* Header consistente */}
+            <DialogTitle sx={{
+              backgroundColor: '#2196f3',
+              color: 'white',
+              textAlign: 'center',
+              py: 3,
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              position: 'relative'
+            }}>
+              🔐 Autorización Requerida
+              <IconButton
+                onClick={() => {
+                  setAutorizacionDialog(false);
+                  setCredencialesLider({ username: '', password: '' });
+                }}
+                sx={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 8,
+                  color: 'white',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(10px)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255,255,255,0.2)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+
+            <DialogContent sx={{ py: 4 }}>
+              <Alert
+                severity="info"
+                sx={{
+                  mb: 3,
+                  borderRadius: '12px',
+                  '& .MuiAlert-message': { width: '100%' }
+                }}
+              >
+                <Typography variant="body1" gutterBottom>
+                  Para reemplazar una bobina existente, se requiere la autorización de un líder.
+                </Typography>
+              </Alert>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Credenciales del Líder:
+                </Typography>
+              </Box>
+
               <TextField
                 fullWidth
                 label="Usuario"
@@ -792,6 +1238,9 @@ const BobinaForm = () => {
                 margin="normal"
                 required
                 sx={{ mb: 2 }}
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
               />
               <TextField
                 fullWidth
@@ -802,21 +1251,57 @@ const BobinaForm = () => {
                 onChange={handleCredencialesChange}
                 margin="normal"
                 required
+                InputProps={{
+                  sx: { borderRadius: '8px' }
+                }}
               />
             </DialogContent>
-            <DialogActions>
-              <Button onClick={() => {
-                setAutorizacionDialog(false);
-                setCredencialesLider({ username: '', password: '' });
-              }}>
-                Cancelar
+
+            <DialogActions sx={{
+              p: 3,
+              gap: 2,
+              backgroundColor: '#f8f9fa'
+            }}>
+              <Button
+                onClick={() => {
+                  setAutorizacionDialog(false);
+                  setCredencialesLider({ username: '', password: '' });
+                }}
+                variant="outlined"
+                sx={{
+                  borderRadius: '8px',
+                  px: 3,
+                  py: 1,
+                  fontWeight: 600,
+                  borderColor: '#ddd',
+                  color: '#666'
+                }}
+              >
+                ✕ Cancelar
               </Button>
               <Button
                 onClick={verificarLider}
                 variant="contained"
                 disabled={autorizando || !credencialesLider.username || !credencialesLider.password}
+                sx={{
+                  borderRadius: '8px',
+                  px: 3,
+                  py: 1,
+                  fontWeight: 600,
+                  backgroundColor: '#2196f3',
+                  '&:hover': {
+                    backgroundColor: '#1976d2'
+                  }
+                }}
               >
-                {autorizando ? <CircularProgress size={24} /> : 'Autorizar'}
+                {autorizando ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={16} sx={{ color: 'white' }} />
+                    Verificando...
+                  </Box>
+                ) : (
+                  '🔓 Autorizar'
+                )}
               </Button>
             </DialogActions>
           </Dialog>

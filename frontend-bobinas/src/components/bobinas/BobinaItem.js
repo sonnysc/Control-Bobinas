@@ -48,7 +48,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
           backgroundColor: '#f0f0f0'
         }}>
           <img
-            src={`http://localhost:8000/storage/${bobina.foto_path}`}
+            src={`${process.env.REACT_APP_BACKEND_URL}/storage/${bobina.foto_path}`}
             alt={bobina.hu || 'Bobina'}
             style={{
               maxWidth: '100%',
