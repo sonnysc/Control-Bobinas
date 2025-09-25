@@ -5,9 +5,8 @@ return [
 
     'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => [
-        'https://frontend.local',
-    ],
+    
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
