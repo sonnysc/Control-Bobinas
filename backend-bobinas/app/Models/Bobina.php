@@ -1,5 +1,4 @@
 <?php
-// app/Models/Bobina.php
 
 namespace App\Models;
 
@@ -30,39 +29,37 @@ class Bobina extends Model
         'fecha_aprobacion' => 'datetime'
     ];
 
-    // Usuario que registró la bobina
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    
+    protected $appends = ['foto_url'];
+
+
+    // Relaciones (sin cambios)
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Líder que aprobó
     public function aprobador()
     {
         return $this->belongsTo(User::class, 'aprobado_por');
     }
 
-    // Usuario que hizo el reemplazo
     public function reemplazador()
     {
         return $this->belongsTo(User::class, 'reemplazado_por');
     }
 
-    // URL de la imagen
     public function getFotoUrlAttribute()
     {
-        if ($this->foto_path) {
+        if ($this->foto_path && Storage::disk('public')->exists($this->foto_path)) {
             return Storage::disk('public')->url($this->foto_path);
         }
-        return null;
+        return null; // O una URL a una imagen por defecto
     }
 
-    // Calcular días restantes antes de depuración
-    public function diasRestantes($diasRetencion = 90)
-    {
-        $fechaBase = $this->fecha_reemplazo ?? $this->fecha_embarque;
-        $fechaLimite = $fechaBase->copy()->addDays($diasRetencion);
-        $restantes = $fechaLimite->diffInDays(now(), false);
-        return $restantes > 0 ? $restantes : 0;
-    }
 }

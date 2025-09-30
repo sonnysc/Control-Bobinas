@@ -10,18 +10,16 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Carbon\Carbon;
 
+
 class BobinaController extends Controller
 {
     // Listado de bobinas con filtros y días restantes
 
     public function index(Request $request)
     {
-        $configuraciones = \App\Models\Configuracion::all()->keyBy('cliente');
-        $diasRetencionDefault = 90;
-
         $query = Bobina::with(['usuario', 'aprobador', 'reemplazador']);
 
-        // Filtros (mantener igual)
+        // Filtros
         if ($request->filled('search')) {
             if ($request->boolean('exact')) {
                 $query->where('hu', $request->search);
@@ -54,21 +52,7 @@ class BobinaController extends Controller
 
         $bobinasPag = $query->orderBy('fecha_embarque', 'desc')->paginate(15);
 
-        $bobinasPag->getCollection()->transform(function ($bobina) use ($configuraciones, $diasRetencionDefault) {
-            // Días restantes - CÁLCULO CORREGIDO
-            $diasRetencion = $configuraciones[$bobina->cliente]->dias_retencion ?? $diasRetencionDefault;
-            $fechaBase = $bobina->fecha_reemplazo ?? $bobina->fecha_embarque;
-
-            if ($fechaBase) {
-                $fechaLimite = $fechaBase->copy()->addDays($diasRetencion);
-                $bobina->dias_restantes = max(0, now()->diffInDays($fechaLimite, false));
-            } else {
-                $bobina->dias_restantes = $diasRetencion;
-            }
-
-            return $bobina;
-        });
-
+        
         return response()->json($bobinasPag);
     }
 
@@ -273,10 +257,11 @@ class BobinaController extends Controller
         $hu = $request->hu;
         $cliente = $request->cliente ?: 'general';
         $folderPath = 'imagenes/' . $cliente . '/' . date('Y-m-d');
-        $fileName = $hu . '.' . $image->getClientOriginalExtension();
+        $fileName = $hu . '_' . time() . '.' . $image->getClientOriginalExtension();
 
         $manager = new ImageManager(new Driver());
         $img = $manager->read($image->getRealPath());
+        
         $img->scale(width: 800);
 
         $fullPath = $folderPath . '/' . $fileName;

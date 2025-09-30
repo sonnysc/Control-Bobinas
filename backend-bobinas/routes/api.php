@@ -26,12 +26,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bobinas/{id}', [BobinaController::class, 'show']);
     Route::post('/bobinas', [BobinaController::class, 'store']);
 
-    // Solo admin puede gestionar aprobaciones
-    Route::middleware(['role:admin'])->group(function () {
-        Route::get('/bobinas/solicitudes/pendientes', [BobinaController::class, 'getSolicitudesPendientes']);
-        Route::post('/bobinas/{id}/aprobar', [BobinaController::class, 'aprobarActualizacion']);
-        Route::post('/bobinas/{id}/rechazar', [BobinaController::class, 'rechazarActualizacion']);
-    });
 
     // Embarcadores y admin pueden actualizar, pero embarcadores requieren aprobación
     Route::middleware(['role:admin,embarcador'])->group(function () {

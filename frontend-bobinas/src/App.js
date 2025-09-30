@@ -11,7 +11,6 @@ import BobinaForm from './components/bobinas/BobinaForm';
 import UserList from './components/users/UserList';
 import ConfigList from './components/config/ConfigList';
 import { ROLES } from './utils/constants';
-import AutorizacionList from './components/autorizaciones/AutorizacionList';
 
 // Crear tema personalizado
 const theme = createTheme({
@@ -149,14 +148,6 @@ const AppRoutes = () => {
         <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
             <BobinaForm />
-          </Layout>
-        </ProtectedRoute>
-      } />
-
-      <Route path="/autorizaciones" element={
-        <ProtectedRoute requiredRoles={[ROLES.LIDER]}>
-          <Layout>
-            <AutorizacionList />
           </Layout>
         </ProtectedRoute>
       } />

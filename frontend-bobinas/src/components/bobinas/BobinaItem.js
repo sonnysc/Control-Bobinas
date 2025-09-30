@@ -1,4 +1,4 @@
-// src/components/bobinas/BobinaItem.js
+//src/components/bobinas/BobinaItem.js
 import React from 'react';
 import {
   Card,
@@ -37,7 +37,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
         boxShadow: 3
       }
     }}>
-      {bobina.foto_path ? (
+      {bobina.foto_url ? (
         <Box sx={{ 
           width: '100%', 
           height: 200, 
@@ -48,12 +48,12 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
           backgroundColor: '#f0f0f0'
         }}>
           <img
-            src={`${process.env.REACT_APP_BACKEND_URL}/storage/${bobina.foto_path}`}
+            src={bobina.foto_url}
             alt={bobina.hu || 'Bobina'}
             style={{
               maxWidth: '100%',
               maxHeight: '100%',
-              objectFit: 'contain', // Mantener relación de aspecto
+              objectFit: 'contain',
               width: 'auto',
               height: 'auto'
             }}
@@ -73,7 +73,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
 
       <CardContent sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Typography variant="h6" component="div">{bobina.hu || 'N/A'}</Typography>
+          <Typography variant="h6">{bobina.hu || 'N/A'}</Typography>
         </Box>
 
         <Typography variant="body2" color="text.secondary" gutterBottom>

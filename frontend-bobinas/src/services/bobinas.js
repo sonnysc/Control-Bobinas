@@ -5,7 +5,6 @@ export const bobinaService = {
   getAll: (params) => api.get('/bobinas', { params }),
   getById: (id) => api.get(`/bobinas/${id}`),
   create: (formData) => {
-    // formData debe ser instancia de FormData
     return api.post('/bobinas', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -31,7 +30,5 @@ export const bobinaService = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  delete: (id) => api.delete(`/bobinas/${id}`),
   getClientes: () => api.get('/bobinas/clientes'),
-  getByHu: (hu) => api.get(`/bobinas?search=${hu}&exact=true`),
 };

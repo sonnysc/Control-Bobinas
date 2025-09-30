@@ -1,4 +1,4 @@
-// src/components/bobinas/BobinaList.js
+//src/components/bobinas/BobinaList.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid,
@@ -23,14 +23,12 @@ const BobinaList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Redirigir embarcadores al formulario
   useEffect(() => {
     if (user?.role === ROLES.EMBARCADOR) {
       navigate('/bobinas/nueva', { replace: true });
     }
   }, [user, navigate]);
 
-  // Función para cargar bobinas con useCallback
   const loadBobinas = useCallback(async () => {
     try {
       const params = { page: pagination.page, ...filters };
@@ -47,7 +45,6 @@ const BobinaList = () => {
     }
   }, [pagination.page, filters]);
 
-  // Función para cargar clientes con useCallback
   const loadClientes = useCallback(async () => {
     try {
       const response = await bobinaService.getClientes();
@@ -57,7 +54,6 @@ const BobinaList = () => {
     }
   }, []);
 
-  // Cargar bobinas y clientes
   useEffect(() => {
     loadBobinas();
     if ([ROLES.ADMIN, ROLES.INGENIERO].includes(user?.role)) {
@@ -87,39 +83,27 @@ const BobinaList = () => {
   };
 
   const getDiasRestantesColor = (dias) => {
-    if (dias <= 7) return 'error'; // Rojo - Menos de 7 días
-    if (dias <= 30) return 'warning'; // Amarillo - Menos de 30 días
-    return 'success'; // Verde - Más de 30 días
+    if (dias <= 7) return 'error';
+    if (dias <= 30) return 'warning';
+    return 'success';
   };
 
   const limpiarFiltros = () => {
-    setFilters({
-      search: '',   // 👈 en tu estado inicial se llama "search", no "hu"
-      cliente: '',
-      fecha_inicio: '',
-      fecha_fin: '',
-    });
-    setPagination(prev => ({ ...prev, page: 1 })); // reset a la primera página
-    loadBobinas(); // ✅ recarga lista completa
+    setFilters({ search: '', cliente: '', fecha_inicio: '', fecha_fin: '' });
+    setPagination(prev => ({ ...prev, page: 1 }));
+    loadBobinas();
   };
 
-  // Si es embarcador, no renderizar nada (será redirigido)
-  if (user?.role === ROLES.EMBARCADOR) {
-    return null;
-  }
-
-
+  if (user?.role === ROLES.EMBARCADOR) return null;
 
   return (
     <Box>
       <Card sx={{ mb: 3, maxWidth: '1200px', mx: 'auto' }}>
         <CardContent>
-          {/* Cambiar título según el rol */}
           <Typography variant="h5" gutterBottom>
             {user?.role === ROLES.INGENIERO ? 'Bobinas' : 'Registros de Bobinas'}
           </Typography>
           <Grid container spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
-            {/* Buscar por HU*/}
             <Grid item xs={12} sm={6} md={3}>
               <TextField
                 fullWidth
@@ -128,23 +112,15 @@ const BobinaList = () => {
                 onChange={e => handleFilterChange('search', e.target.value)}
                 InputProps={{ endAdornment: <SearchIcon /> }}
                 sx={{
-                  '& .MuiInputBase-root': {
-                    height: '56px'
-                  },
-                  '& .MuiInputBase-input': {
-                    padding: '12px 14px',
-                    fontSize: '14px'
-                  }
+                  '& .MuiInputBase-root': { height: '56px' },
+                  '& .MuiInputBase-input': { padding: '12px 14px', fontSize: '14px' }
                 }}
               />
             </Grid>
 
-            {/* Select de Cliente - Mismo ancho */}
             {[ROLES.ADMIN, ROLES.INGENIERO].includes(user?.role) && (
               <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth sx={{
-                  '& .MuiInputBase-root': { height: '56px' }
-                }}>
+                <FormControl fullWidth sx={{ '& .MuiInputBase-root': { height: '56px' } }}>
                   <InputLabel
                     id="cliente-label"
                     shrink={true}
@@ -156,19 +132,9 @@ const BobinaList = () => {
                     labelId="cliente-filter-label"
                     id="cliente-filter"
                     value={filters.cliente}
-                    label="Cliente"
                     onChange={e => handleFilterChange('cliente', e.target.value)}
                     displayEmpty
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 250,
-                          minWidth: 250,
-                          maxWidth: 400 // ajustable según el contenido
-                        }
-                      }
-                    }}
-
+                    MenuProps={{ PaperProps: { style: { maxHeight: 250, minWidth: 250, maxWidth: 400 } } }}
                     sx={{
                       '& .MuiSelect-select': {
                         padding: '12px 14px',
@@ -179,39 +145,19 @@ const BobinaList = () => {
                         minWidth: '180px'
                       }
                     }}
-
-                    renderValue={(selected) => {
-                      if (!selected) {
-                        return <span style={{ opacity: 0.7 }}>Todos</span>;
-                      }
-                      return selected;
-                    }}
+                    renderValue={(selected) => !selected ? <span style={{ opacity: 0.7 }}>Todos</span> : selected}
                   >
                     <MenuItem value="">Todos</MenuItem>
                     {clientes.map(cliente => (
-                      <MenuItem
-                        key={cliente}
-                        value={cliente}
-                        sx={{
-                          whiteSpace: 'normal',
-                          wordBreak: 'break-word',
-                          fontSize: '14px',
-                          lineHeight: '1.4',
-                          paddingY: '8px'
-                        }}
-                        title={cliente} // tooltip nativo para mostrar el nombre completo al hacer hover
-                      >
+                      <MenuItem key={cliente} value={cliente} sx={{ whiteSpace: 'normal', wordBreak: 'break-word', fontSize: '14px', lineHeight: '1.4', paddingY: '8px' }} title={cliente}>
                         {cliente}
                       </MenuItem>
                     ))}
-
                   </Select>
                 </FormControl>
-
               </Grid>
             )}
 
-            {/* Fecha inicio - Mismo ancho */}
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -220,22 +166,11 @@ const BobinaList = () => {
                 value={filters.fecha_inicio}
                 onChange={e => handleFilterChange('fecha_inicio', e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                inputProps={{
-                  max: new Date().toISOString().split("T")[0] // ✅ Limita hasta hoy
-                }}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: '56px'
-                  },
-                  '& .MuiInputBase-input': {
-                    padding: '12px 14px',
-                    fontSize: '14px'
-                  }
-                }}
+                inputProps={{ max: new Date().toISOString().split("T")[0] }}
+                sx={{ '& .MuiInputBase-root': { height: '56px' }, '& .MuiInputBase-input': { padding: '12px 14px', fontSize: '14px' } }}
               />
             </Grid>
 
-            {/* Fecha fin - Mismo ancho */}
             <Grid item xs={12} sm={6} md={2}>
               <TextField
                 fullWidth
@@ -244,49 +179,22 @@ const BobinaList = () => {
                 value={filters.fecha_fin}
                 onChange={e => handleFilterChange('fecha_fin', e.target.value)}
                 InputLabelProps={{ shrink: true }}
-                inputProps={{
-                  max: new Date().toISOString().split("T")[0] // ✅ Limita hasta hoy
-                }}
-                sx={{
-                  '& .MuiInputBase-root': {
-                    height: '56px'
-                  },
-                  '& .MuiInputBase-input': {
-                    padding: '12px 14px',
-                    fontSize: '14px'
-                  }
-                }}
+                inputProps={{ max: new Date().toISOString().split("T")[0] }}
+                sx={{ '& .MuiInputBase-root': { height: '56px' }, '& .MuiInputBase-input': { padding: '12px 14px', fontSize: '14px' } }}
               />
             </Grid>
 
             {hayFiltros && (
               <Grid item xs={12} sm={6} md={2}>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  fullWidth
-                  onClick={limpiarFiltros}
-                  sx={{ height: '56px' }}
-                >
+                <Button variant="outlined" color="secondary" fullWidth onClick={limpiarFiltros} sx={{ height: '56px' }}>
                   Limpiar
                 </Button>
               </Grid>
             )}
 
-
-            {/* Botón Nueva Bobina - Mismo ancho */}
             {user?.role === ROLES.EMBARCADOR && (
               <Grid item xs={12} sm={6} md={2}>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  fullWidth
-                  sx={{
-                    height: '56px',
-                    py: '12px'
-                  }}
-                  onClick={() => navigate('/bobinas/nueva')}
-                >
+                <Button variant="contained" startIcon={<AddIcon />} fullWidth sx={{ height: '56px', py: '12px' }} onClick={() => navigate('/bobinas/nueva')}>
                   Nueva Bobina
                 </Button>
               </Grid>
@@ -320,20 +228,10 @@ const BobinaList = () => {
                 <Typography><strong>Cliente:</strong> {selectedBobina.cliente || 'N/A'}</Typography>
                 <Typography><strong>Fecha embarque:</strong> {selectedBobina.fecha_embarque ? new Date(selectedBobina.fecha_embarque).toLocaleString() : 'N/A'}</Typography>
                 <Typography><strong>Registrado por:</strong> {selectedBobina.usuario?.username || 'N/A'}</Typography>
-
-                {/* Días restantes con color */}
                 <Typography component="div" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                   <strong>Días restantes:</strong>
-                  <Chip
-                    label={`${Math.round(selectedBobina.dias_restantes || 0)} días`}
-                    size="small"
-                    color={getDiasRestantesColor(selectedBobina.dias_restantes)}
-                    variant="outlined"
-                    sx={{ ml: 1 }}
-                  />
+                  <Chip label={`${Math.round(selectedBobina.dias_restantes || 0)} días`} size="small" color={getDiasRestantesColor(selectedBobina.dias_restantes)} variant="outlined" sx={{ ml: 1 }} />
                 </Typography>
-
-                {/* Información de reemplazo */}
                 {selectedBobina.fecha_reemplazo && (
                   <>
                     <Typography><strong>Fecha de reemplazo:</strong> {selectedBobina.fecha_reemplazo ? new Date(selectedBobina.fecha_reemplazo).toLocaleString() : 'N/A'}</Typography>
@@ -345,28 +243,15 @@ const BobinaList = () => {
 
               <Grid item xs={12} md={6}>
                 <Typography variant="h6">Fotografía</Typography>
-                {selectedBobina.foto_path ? (
-                  <Box sx={{
-                    width: '100%',
-                    maxHeight: 400,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden'
-                  }}>
+                {selectedBobina.foto_url ? (
+                  <Box sx={{ width: '100%', maxHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     <img
-                      src={`${process.env.REACT_APP_BACKEND_URL}/storage/${selectedBobina.foto_path}`}
+                      src={selectedBobina.foto_url}
                       alt={selectedBobina.hu}
-                      style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain' // Cambiado para mantener relación de aspecto
-                      }}
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                     />
                   </Box>
-                ) : (
-                  <Typography>No hay foto disponible</Typography>
-                )}
+                ) : <Typography>No hay foto disponible</Typography>}
               </Grid>
             </Grid>
           )}
