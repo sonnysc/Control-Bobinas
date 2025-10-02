@@ -20,9 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
 
-        // Agregar CORS globalmente - FORMA CORRECTA para Laravel 11+
-        $middleware->appendToGroup('web', CustomCors::class);
-        $middleware->appendToGroup('api', CustomCors::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

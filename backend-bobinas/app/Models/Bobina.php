@@ -1,5 +1,7 @@
 <?php
 
+// app/Models/Bobina.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,29 +18,27 @@ class Bobina extends Model
         'cliente',
         'foto_path',
         'user_id',
+        'fecha_embarque',
         'fecha_reemplazo',
+        'fecha_borrado',
         'estado_aprobacion',
         'aprobado_por',
         'reemplazado_por',
-        'fecha_aprobacion'
+        'fecha_aprobacion',
+        'comentarios_aprobacion',
+        'estado'
     ];
 
     protected $casts = [
         'fecha_embarque' => 'datetime',
         'fecha_reemplazo' => 'datetime',
-        'fecha_aprobacion' => 'datetime'
+        'fecha_aprobacion' => 'datetime',
+        'fecha_borrado' => 'datetime'
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
-     */
-    
     protected $appends = ['foto_url'];
 
-
-    // Relaciones (sin cambios)
+    // Relaciones
     public function usuario()
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -59,7 +59,6 @@ class Bobina extends Model
         if ($this->foto_path && Storage::disk('public')->exists($this->foto_path)) {
             return Storage::disk('public')->url($this->foto_path);
         }
-        return null; // O una URL a una imagen por defecto
+        return null;
     }
-
 }

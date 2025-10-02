@@ -32,6 +32,7 @@ export const useBobinaForm = () => {
   const [autorizando, setAutorizando] = useState(false);
   const [lastUsedCliente, setLastUsedCliente] = useState('');
   const [hasMadeFirstRegistration, setHasMadeFirstRegistration] = useState(false);
+  const [liderAutorizado, setLiderAutorizado] = useState(null);
 
   const loadBobina = useCallback(async () => {
     try {
@@ -42,20 +43,20 @@ export const useBobinaForm = () => {
         cliente: bobina.cliente || '',
         foto: null
       });
-      setPreview(`${process.env.REACT_APP_BACKEND_URL}/storage/${bobina.foto_path}`);
+      setPreview(bobina.foto_url);
     } catch (error) {
-      setError('Error al cargar la bobina');
+      setError('Error al cargar la bobina: ' + (error.response?.data?.message || error.message));
     }
   }, [id]);
 
-  const loadClientes = async () => {
+  const loadClientes = useCallback(async () => {
     try {
       const response = await bobinaService.getClientes();
       setClientes(response.data);
     } catch (error) {
       console.error('Error loading clientes:', error);
     }
-  };
+  }, []);
 
   const saveLastUsedCliente = (cliente) => {
     if (cliente && cliente.trim()) {
@@ -67,10 +68,6 @@ export const useBobinaForm = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
-    if (name === 'cliente' && value.trim()) {
-      saveLastUsedCliente(value);
-    }
   };
 
   const handleFileSelect = async (file, fromCamera = false) => {
@@ -102,9 +99,11 @@ export const useBobinaForm = () => {
     setAutorizando(true);
     setError('');
     try {
+      const response = await bobinaService.verificarAutorizacionLider(credencialesLider);
+      setLiderAutorizado(response.data.lider);
       await ejecutarReemplazo();
     } catch (error) {
-      setError('Error en la autorización: ' + (error.response?.data?.message || 'Credenciales incorrectas'));
+      setError('Error en la autorización: ' + (error.response?.data?.error || 'Credenciales incorrectas'));
     } finally {
       setAutorizando(false);
     }
@@ -117,7 +116,6 @@ export const useBobinaForm = () => {
       formDataToSend.append('cliente', formData.cliente || '');
       formDataToSend.append('lider_username', credencialesLider.username);
       formDataToSend.append('lider_password', credencialesLider.password);
-      formDataToSend.append('reemplazado_por', user?.id);
 
       saveLastUsedCliente(formData.cliente);
       setHasMadeFirstRegistration(true);
@@ -132,6 +130,7 @@ export const useBobinaForm = () => {
       setAutorizacionDialog(false);
       setExistingBobina(null);
       setCredencialesLider({ username: '', password: '' });
+      setLiderAutorizado(null);
 
       setTimeout(() => {
         navigate('/');
@@ -148,6 +147,19 @@ export const useBobinaForm = () => {
     setError('');
     setSuccess('');
 
+    // Validaciones básicas
+    if (!formData.hu || !/^[0-9]{9}$/.test(formData.hu)) {
+      setError('El HU debe tener exactamente 9 dígitos');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.cliente.trim()) {
+      setError('El campo cliente es requerido');
+      setLoading(false);
+      return;
+    }
+
     if (!isEdit && !formData.foto) {
       setError('Debe subir una fotografía de la bobina');
       setLoading(false);
@@ -155,35 +167,45 @@ export const useBobinaForm = () => {
     }
 
     try {
-      const formDataToSend = new FormData();
-      formDataToSend.append('hu', formData.hu);
-      formDataToSend.append('cliente', formData.cliente || '');
-      saveLastUsedCliente(formData.cliente);
-
       if (isEdit) {
-        formDataToSend.append('_method', 'PUT');
-        await bobinaService.update(id, formDataToSend);
+        // Para edición
+        const updateData = {
+          hu: formData.hu,
+          cliente: formData.cliente,
+          foto: formData.foto
+        };
+
+        await bobinaService.update(id, updateData);
         setSuccess('Bobina actualizada correctamente');
+        
+        setTimeout(() => {
+          navigate('/');
+        }, 1500);
       } else {
+        // Para creación
+        const formDataToSend = new FormData();
+        formDataToSend.append('hu', formData.hu);
+        formDataToSend.append('cliente', formData.cliente || '');
+        
         if (formData.foto instanceof File) {
           formDataToSend.append('foto', formData.foto);
         }
 
         try {
           await bobinaService.create(formDataToSend);
-          setSuccess('Bobina registrada correctamente');
+          
+          saveLastUsedCliente(formData.cliente);
           setHasMadeFirstRegistration(true);
-          setTimeout(() => navigate('/'), 1500);
+          
+          setSuccess('Bobina registrada correctamente');
+          
+          setTimeout(() => {
+            navigate('/');
+          }, 1500);
         } catch (error) {
-          if (error.response?.status === 422 || error.response?.status === 409) {
-            const response = await bobinaService.getAll({ search: formData.hu });
-            if (response.data.data.length > 0) {
-              const bobinaExistente = response.data.data[0];
-              setExistingBobina(bobinaExistente);
-              setConfirmReplacementDialog(true);
-            } else {
-              setError('Bobina encontrada pero no se pudo obtener información completa');
-            }
+          if (error.response?.status === 409) {
+            setExistingBobina(error.response.data.bobina_existente);
+            setConfirmReplacementDialog(true);
           } else {
             throw error;
           }
@@ -195,10 +217,14 @@ export const useBobinaForm = () => {
         setError('La imagen es demasiado grande. Máximo 5MB permitido');
       } else if (error.response?.data?.errors?.foto) {
         setError(`Error en la fotografía: ${error.response.data.errors.foto[0]}`);
+      } else if (error.response?.data?.errors?.hu) {
+        setError(`Error en el HU: ${error.response.data.errors.hu[0]}`);
       } else if (error.response?.data?.message) {
         setError(error.response.data.message);
+      } else if (error.response?.data?.error) {
+        setError(error.response.data.error);
       } else {
-        setError('Error al procesar la solicitud: ' + error.message);
+        setError('Error al procesar la solicitud: ' + (error.message || 'Error desconocido'));
       }
     } finally {
       setLoading(false);
@@ -229,10 +255,12 @@ export const useBobinaForm = () => {
     if (!isEdit) {
       setFormData({
         hu: '',
-        cliente: hasMadeFirstRegistration ? lastUsedCliente : '',
+        cliente: hasMadeFirstRegistration ? lastUsedCliente : '', // 🔥 Mantener cliente guardado
         foto: null
       });
       setPreview(null);
+      setError('');
+      setSuccess('');
     }
   }, [isEdit, hasMadeFirstRegistration, lastUsedCliente]);
 
@@ -250,15 +278,41 @@ export const useBobinaForm = () => {
     if (savedCliente && hasRegistered === 'true' && !isEdit) {
       setFormData(prev => ({ ...prev, cliente: savedCliente }));
       setLastUsedCliente(savedCliente);
-      setHasMadeFirstRegistration(true);
     }
-  }, [isEdit, id, user?.role, loadBobina]);
+  }, [isEdit, id, user?.role, loadBobina, loadClientes]);
 
   useEffect(() => {
     if (hasMadeFirstRegistration) {
       localStorage.setItem('hasMadeFirstRegistration', 'true');
+    } else {
+      localStorage.removeItem('hasMadeFirstRegistration');
+      localStorage.removeItem('lastUsedCliente');
     }
   }, [hasMadeFirstRegistration]);
+
+  useEffect(() => {
+    if (user && !isEdit) {
+      setHasMadeFirstRegistration(false);
+      setLastUsedCliente('');
+      setFormData(prev => ({
+        ...prev,
+        cliente: ''
+      }));
+    }
+  }, [user, isEdit]);
+
+  // Limpiar estados al desmontar
+  useEffect(() => {
+    return () => {
+      setError('');
+      setSuccess('');
+      setExistingBobina(null);
+      setConfirmReplacementDialog(false);
+      setAutorizacionDialog(false);
+      setCredencialesLider({ username: '', password: '' });
+      setLiderAutorizado(null);
+    };
+  }, []);
 
   const isFormValid =
     /^[0-9]{9}$/.test(formData.hu) &&
@@ -282,6 +336,7 @@ export const useBobinaForm = () => {
     hasMadeFirstRegistration,
     isEdit,
     user,
+    liderAutorizado,
 
     // Handlers
     handleInputChange,
@@ -299,9 +354,11 @@ export const useBobinaForm = () => {
     setAutorizacionDialog,
     setCredencialesLider,
     setHasMadeFirstRegistration,
+    setPreview,
+    setFormData,
 
     // Utilidades
     isFormValid,
-    navigate
+    navigate,
   };
 };

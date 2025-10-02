@@ -1,4 +1,5 @@
-//src/components/bobinas/BobinaList.js
+// src/components/bobinas/BobinaList.js
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box, Card, CardContent, Typography, TextField, Button, Grid,
@@ -23,11 +24,6 @@ const BobinaList = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user?.role === ROLES.EMBARCADOR) {
-      navigate('/bobinas/nueva', { replace: true });
-    }
-  }, [user, navigate]);
 
   const loadBobinas = useCallback(async () => {
     try {
@@ -83,8 +79,9 @@ const BobinaList = () => {
   };
 
   const getDiasRestantesColor = (dias) => {
-    if (dias <= 7) return 'error';
-    if (dias <= 30) return 'warning';
+    const diasRedondeados = Math.round(dias || 0);
+    if (diasRedondeados <= 7) return 'error';
+    if (diasRedondeados <= 30) return 'warning';
     return 'success';
   };
 
@@ -94,14 +91,33 @@ const BobinaList = () => {
     loadBobinas();
   };
 
-  if (user?.role === ROLES.EMBARCADOR) return null;
+  if (user?.role === ROLES.EMBARCADOR) {
+    return (
+      <Box sx={{ textAlign: 'center', mt: 4 }}>
+        <Typography variant="h5" gutterBottom>
+          Bienvenido Embarcador
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          Utilice el menú lateral para registrar nuevas bobinas
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/bobinas/nueva')}
+          size="large"
+        >
+          Ir a Registrar Bobina
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box>
       <Card sx={{ mb: 3, maxWidth: '1200px', mx: 'auto' }}>
         <CardContent>
           <Typography variant="h5" gutterBottom>
-            {user?.role === ROLES.INGENIERO ? 'Bobinas' : 'Registros de Bobinas'}
+            {user?.role === ROLES.INGENIERO ? 'Panel de Bobinas' : 'Panel de Bobinas'}
           </Typography>
           <Grid container spacing={2} sx={{ mb: 2, alignItems: 'center' }}>
             <Grid item xs={12} sm={6} md={3}>
@@ -158,7 +174,7 @@ const BobinaList = () => {
               </Grid>
             )}
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Fecha inicio"
@@ -167,11 +183,18 @@ const BobinaList = () => {
                 onChange={e => handleFilterChange('fecha_inicio', e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ max: new Date().toISOString().split("T")[0] }}
-                sx={{ '& .MuiInputBase-root': { height: '56px' }, '& .MuiInputBase-input': { padding: '12px 14px', fontSize: '14px' } }}
+                sx={{
+                  minWidth: '250px',
+                  '& .MuiInputBase-root': { height: '56px' },
+                  '& .MuiInputBase-input': {
+                    padding: '12px 14px',
+                    fontSize: '14px'
+                  }
+                }}
               />
             </Grid>
 
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 label="Fecha fin"
@@ -180,7 +203,14 @@ const BobinaList = () => {
                 onChange={e => handleFilterChange('fecha_fin', e.target.value)}
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ max: new Date().toISOString().split("T")[0] }}
-                sx={{ '& .MuiInputBase-root': { height: '56px' }, '& .MuiInputBase-input': { padding: '12px 14px', fontSize: '14px' } }}
+                sx={{
+                  minWidth: '250px',
+                  '& .MuiInputBase-root': { height: '56px' },
+                  '& .MuiInputBase-input': {
+                    padding: '12px 14px',
+                    fontSize: '14px'
+                  }
+                }}
               />
             </Grid>
 

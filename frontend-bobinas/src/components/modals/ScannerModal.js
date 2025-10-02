@@ -12,7 +12,7 @@ import {
     Alert
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { CircularProgress } from '@mui/material'; // 
+import { CircularProgress } from '@mui/material';
 
 const ScannerModal = ({
     open,
@@ -23,6 +23,18 @@ const ScannerModal = ({
     onStartScanner,
     onStopScanner
 }) => {
+    // 🔥 CORREGIDO: Iniciar automáticamente cuando se abre el modal
+    useEffect(() => {
+        if (open && !scanning && !qrError) {
+            // Pequeño delay para asegurar que el modal esté completamente renderizado
+            const timer = setTimeout(() => {
+                onStartScanner();
+            }, 500);
+            
+            return () => clearTimeout(timer);
+        }
+    }, [open, scanning, qrError, onStartScanner]);
+
     // 🔥 Añadir estilos CSS globalmente
     useEffect(() => {
         const style = document.createElement('style');
@@ -104,7 +116,6 @@ const ScannerModal = ({
                         <Alert severity="error" sx={{ mb: 2 }}>
                             {qrError}
                         </Alert>
-                        {/* 🔥 Cambiar el texto del botón para reintentar */}
                         <Button 
                             onClick={onStartScanner} 
                             variant="contained" 
@@ -226,14 +237,14 @@ const ScannerModal = ({
                                 height: '100%',
                                 objectFit: 'cover',
                                 minHeight: '400px',
-                                opacity: scanning ? 1 : 0.7 // 🔥 Cambiar opacidad cuando no está escaneando
+                                opacity: scanning ? 1 : 0.7
                             }}
                             autoPlay
                             muted
                             playsInline
                         />
 
-                        {/* 🔥 Simplificar controles - solo mostrar botón para detener */}
+                        {/* Controles */}
                         {scanning && (
                             <Box sx={{
                                 position: 'absolute',
@@ -270,7 +281,7 @@ const ScannerModal = ({
                             </Box>
                         )}
 
-                        {/* 🔥 Mostrar mensaje cuando no está escaneando */}
+                        {/* Mostrar mensaje cuando no está escaneando */}
                         {!scanning && !qrError && (
                             <Box sx={{
                                 position: 'absolute',

@@ -1,5 +1,6 @@
 <?php
 // app/Http/Middleware.php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -17,7 +18,7 @@ class RoleMiddleware
         }
 
         if (!in_array($user->role, $roles)) {
-            return response()->json(['error' => 'No autorizado'], 403);
+            return response()->json(['error' => 'No autorizado para esta acción'], 403);
         }
 
         return $next($request);

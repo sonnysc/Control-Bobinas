@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "http-proxy-middleware": "^3.0.5",
-    "https-localhost": "^4.7.1"
+    "https-localhost": "^4.7.1",
+    "workbox-webpack-plugin": "^7.3.0"
   }
 }

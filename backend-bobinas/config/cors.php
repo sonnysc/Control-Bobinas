@@ -1,13 +1,19 @@
 <?php
+
 // config/cors.php
 
 return [
-
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie', 'login', 'logout', 'me'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')),
+    'allowed_origins' => [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://192.168.84.3:3000',
+        'http://controlbobinas.net',
+        'https://controlbobinas.net',
+    ],
 
     'allowed_origins_patterns' => [],
 
@@ -18,5 +24,4 @@ return [
     'max_age' => 0,
 
     'supports_credentials' => true,
-
 ];

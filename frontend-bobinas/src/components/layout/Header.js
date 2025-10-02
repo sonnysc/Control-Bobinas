@@ -44,25 +44,38 @@ const Header = ({ onMenuToggle }) => {
       }}
     >
       <Toolbar>
+        {/* Botón del menú (solo en móvil) */}
         <IconButton
           color="inherit"
           aria-label="open drawer"
           edge="start"
           onClick={onMenuToggle}
-          sx={{ mr: 2, display: { sm: 'none' } }} // Solo mostrar en móvil
+          sx={{ mr: 2, display: { sm: 'none' } }}
         >
           <MenuIcon />
         </IconButton>
-        
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Control de Embarcaciones
-        </Typography>
-        
+
+        {/* Logo + Título */}
+        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+          <Box component="img"
+            src="/Logo-COFICAB.png"
+            alt="Logo COFICAB"
+            sx={{
+              height: 25,
+              width: 'auto',
+              mr: 2
+            }}
+          />
+          <Typography variant="h8" noWrap component="div">
+            Control de Embarcaciones
+          </Typography>
+        </Box>
+
+        {/* Usuario + Menú */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Typography variant="body2" sx={{ mr: 2, display: { xs: 'none', sm: 'block' } }}>
             {user?.username} ({ROLE_LABELS[user?.role]})
           </Typography>
-          
           <IconButton
             size="large"
             aria-label="account of current user"
@@ -75,19 +88,12 @@ const Header = ({ onMenuToggle }) => {
               {user?.username?.charAt(0).toUpperCase()}
             </Avatar>
           </IconButton>
-          
           <Menu
             id="menu-appbar"
             anchorEl={anchorEl}
-            anchorOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
+            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             keepMounted
-            transformOrigin={{
-              vertical: 'top',
-              horizontal: 'right',
-            }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             open={Boolean(anchorEl)}
             onClose={handleClose}
           >

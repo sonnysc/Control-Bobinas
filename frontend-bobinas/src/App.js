@@ -112,22 +112,24 @@ const LoginRedirect = () => {
   return <Login />;
 };
 
-// Componente principal de rutas - MOVER useAuth DENTRO de este componente
+// Componente principal de rutas
 const AppRoutes = () => {
-  const { user } = useAuth(); // <-- MOVER useAuth AQUÍ
+  const { user } = useAuth();
 
   return (
     <Routes>
       {/* Ruta de login */}
       <Route path="/login" element={<LoginRedirect />} />
 
-      {/* Rutas protegidas */}
+      {/* Ruta home - diferente contenido según rol */}
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
             {user?.role === ROLES.EMBARCADOR ? (
-              <Navigate to="/bobinas/nueva" replace />
+              // 🔥 CORREGIDO: Mostrar contenido específico para embarcadores
+              <BobinaList />
             ) : (
+              // Admin, Ingeniero y Líder ven la lista de bobinas
               <BobinaList />
             )}
           </Layout>

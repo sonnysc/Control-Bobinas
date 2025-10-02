@@ -1,6 +1,6 @@
 // src/components/hooks/useScanner.js
 
-import { useState, useRef, useCallback, useEffect } from 'react'; // 🔥 Añadir useEffect
+import { useState, useRef, useCallback } from 'react';
 import { BrowserMultiFormatReader } from "@zxing/library";
 
 export const useScanner = (onScanSuccess) => {
@@ -85,23 +85,12 @@ export const useScanner = (onScanSuccess) => {
       setQrError('No se pudo acceder a la cámara: ' + error.message);
       setScanning(false);
     }
-  }, [onScanSuccess, stopScanner, scanning]); // 🔥 Añadir scanning como dependencia
-
-  // 🔥 Nuevo efecto para iniciar automáticamente el escáner cuando se abre el modal
-  useEffect(() => {
-    if (scannerModalOpen && !scanning) {
-      // Pequeño delay para asegurar que el modal esté completamente renderizado
-      const timer = setTimeout(() => {
-        startScanner();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [scannerModalOpen, scanning, startScanner]);
+  }, [onScanSuccess, stopScanner, scanning]);
 
   const openScannerModal = useCallback(() => {
     setScannerModalOpen(true);
     setQrError('');
+    // 🔥 ELIMINAR: No iniciar automáticamente aquí, dejar que ScannerModal lo maneje
   }, []);
 
   const closeScannerModal = useCallback(() => {

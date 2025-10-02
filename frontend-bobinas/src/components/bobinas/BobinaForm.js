@@ -10,7 +10,8 @@ import {
   Alert,
   Button,
   Grid,
-  CircularProgress
+  CircularProgress,
+  TextField
 } from '@mui/material';
 import { ArrowBack, Save } from '@mui/icons-material';
 import { ROLES } from '../../utils/constants';
@@ -22,7 +23,6 @@ import ConfirmationModal from '../modals/ConfirmationModal';
 import AuthorizationModal from '../modals/AuthorizationModal';
 import ScannerSection from '../modals/ScannerSection';
 import PhotoUploadSection from '../modals/PhotoUploadSection';
-import FormFields from '../modals/FormFields';
 import ScannerModal from '../modals/ScannerModal';
 
 const BobinaForm = () => {
@@ -49,7 +49,6 @@ const BobinaForm = () => {
     loading,
     error,
     success,
-    clientes,
     existingBobina,
     confirmReplacementDialog,
     autorizacionDialog,
@@ -60,6 +59,9 @@ const BobinaForm = () => {
     handleInputChange,
     handleFileSelect,
     handleSubmit,
+    setHasMadeFirstRegistration,
+    setFormData,
+    setPreview,
     handleConfirmReplacement,
     handleCancelReplacement,
     handleCredencialesChange,
@@ -68,7 +70,6 @@ const BobinaForm = () => {
     setSuccess,
     setAutorizacionDialog,
     setCredencialesLider,
-    resetearEstadoPrimerRegistro,
     isFormValid
   } = bobinaForm;
 
@@ -156,31 +157,69 @@ const BobinaForm = () => {
 
           <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
-              <ScannerSection
-                formData={formData}
-                onInputChange={handleInputChange}
-                qrError={scanner.qrError}
-                onOpenScannerModal={scanner.openScannerModal}
-              />
+              {/* HU */}
+              <Grid item xs={12}>
+                <ScannerSection
+                  formData={formData}
+                  onInputChange={handleInputChange}
+                  qrError={scanner.qrError}
+                  onOpenScannerModal={scanner.openScannerModal}
+                />
+              </Grid>
 
-              <FormFields
-                formData={formData}
-                onInputChange={handleInputChange}
-                clientes={clientes}
-                userRole={user?.role}
-              />
+              {/* Cliente + Limpiar */}
+              <Grid item xs={12}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={8}>
+                    <TextField
+                      fullWidth
+                      label="Cliente"
+                      name="cliente"
+                      value={formData.cliente}
+                      onChange={handleInputChange}
+                      placeholder="Ingrese el nombre del cliente"
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                  </Grid>
+                  {!isEdit && (
+                    <Grid item xs={12} md={4}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setHasMadeFirstRegistration(false);
+                          setFormData({
+                            hu: '',
+                            cliente: '',
+                            foto: null
+                          });
+                          setPreview(null);
+                        }}
+                        fullWidth
+                        sx={{ height: '56px' }}
+                      >
+                        Limpiar
+                      </Button>
+                    </Grid>
+                  )}
+                </Grid>
+              </Grid>
 
-              <PhotoUploadSection
-                formData={formData}
-                isEdit={isEdit}
-                isMobile={isMobile}
-                cameraPermission={camera.cameraPermission}
-                onFileSelect={handleFileSelect}
-                onTakePhoto={camera.startCamera}
-                preview={preview}
-              />
+              {/* Foto */}
+              <Grid item xs={12}>
+                <PhotoUploadSection
+                  formData={formData}
+                  isEdit={isEdit}
+                  isMobile={isMobile}
+                  cameraPermission={camera.cameraPermission}
+                  onFileSelect={handleFileSelect}
+                  onTakePhoto={camera.startCamera}
+                  preview={preview}
+                />
+              </Grid>
 
-              <Grid item xs={12} sx={{ display: 'flex', gap: 2 }}>
+              {/* Botón Registrar */}
+              <Grid item xs={12}>
                 <Button
                   type="submit"
                   variant="contained"
@@ -192,33 +231,6 @@ const BobinaForm = () => {
                 >
                   {loading ? 'Procesando...' : isEdit ? 'Actualizar Bobina' : 'Registrar Bobina'}
                 </Button>
-                
-                {!isEdit && (
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      resetearEstadoPrimerRegistro();
-                      bobinaForm.setFormData({
-                        hu: '',
-                        cliente: '',
-                        material: '',
-                        peso: '',
-                        espesor: '',
-                        ancho: '',
-                        od: '',
-                        calidad: '',
-                        fechaFabricacion: '',
-                        observaciones: '',
-                        foto: null
-                      });
-                      bobinaForm.setPreview(null);
-                    }}
-                    size="large"
-                    sx={{ py: '12px', minWidth: '120px' }}
-                  >
-                    Limpiar
-                  </Button>
-                )}
               </Grid>
             </Grid>
           </form>

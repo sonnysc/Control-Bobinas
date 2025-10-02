@@ -1,9 +1,10 @@
 <?php
+
 // config/auth.php
 
 return [
     'defaults' => [
-        'guard' => 'api', // Cambiado de 'web' a 'api'
+        'guard' => 'api',
         'passwords' => 'users',
     ],
 
@@ -13,7 +14,7 @@ return [
             'provider' => 'users',
         ],
         'api' => [
-            'driver' => 'sanctum', 
+            'driver' => 'sanctum',
             'provider' => 'users',
             'hash' => false,
         ],
@@ -22,7 +23,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\User::class, // Quité el env() para que sea directo
+            'model' => App\Models\User::class,
         ],
     ],
 

@@ -1,4 +1,5 @@
 <?php
+
 // routes/api.php
 
 use App\Http\Controllers\AuthController;
@@ -6,7 +7,6 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\BobinaController;
 use App\Http\Controllers\ConfiguracionController;
 use Illuminate\Support\Facades\Route;
-
 
 // Rutas de Sanctum para CSRF
 Route::get('/sanctum/csrf-cookie', function () {
@@ -25,28 +25,25 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bobinas/clientes', [BobinaController::class, 'getClientes']);
     Route::get('/bobinas/{id}', [BobinaController::class, 'show']);
     Route::post('/bobinas', [BobinaController::class, 'store']);
+    Route::post('/bobinas/verificar-autorizacion', [BobinaController::class, 'verificarAutorizacionLider']);
 
-
-    // Embarcadores y admin pueden actualizar, pero embarcadores requieren aprobación
-    Route::middleware(['role:admin,embarcador'])->group(function () {
-        Route::put('/bobinas/{id}', [BobinaController::class, 'update']);
-    });
+    // Embarcadores y admin pueden actualizar
+    Route::put('/bobinas/{id}', [BobinaController::class, 'update']);
 
     // Solo admin puede eliminar bobinas y gestionar configuraciones
     Route::middleware(['role:admin'])->group(function () {
-        Route::delete('/bobinas/{id}', [BobinaController::class, 'destroy']); // DEJAR SOLO ESTA
+        Route::delete('/bobinas/{id}', [BobinaController::class, 'destroy']);
 
+        // Configuraciones
         Route::get('/configuraciones', [ConfiguracionController::class, 'index']);
         Route::post('/configuraciones', [ConfiguracionController::class, 'store']);
         Route::put('/configuraciones/{id}', [ConfiguracionController::class, 'update']);
         Route::delete('/configuraciones/{id}', [ConfiguracionController::class, 'destroy']);
 
+        // Usuarios
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
     });
-
-    // Ruta para verificar autorización de líder
-    Route::post('/bobinas/verificar-autorizacion', [BobinaController::class, 'verificarAutorizacionLider']);
 });

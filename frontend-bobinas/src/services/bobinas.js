@@ -1,4 +1,5 @@
 // src/services/bobinas.js
+
 import api from './api';
 
 export const bobinaService = {
@@ -10,25 +11,28 @@ export const bobinaService = {
     });
   },
   update: (id, data) => {
-    // data puede ser FormData o objeto plano
-    if (data instanceof FormData) {
-      return api.post(`/bobinas/${id}`, data, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-    }
     const formData = new FormData();
     formData.append('hu', data.hu);
     formData.append('cliente', data.cliente || '');
-    if (data.autorizacion_lider) {
-      formData.append('autorizacion_lider', data.autorizacion_lider);
-    }
     formData.append('_method', 'PUT');
+    
     if (data.foto) {
       formData.append('foto', data.foto);
     }
+    
+    if (data.autorizacion_lider) {
+      formData.append('autorizacion_lider', data.autorizacion_lider);
+    }
+    
+    if (data.lider_id) {
+      formData.append('lider_id', data.lider_id);
+    }
+
     return api.post(`/bobinas/${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  delete: (id) => api.delete(`/bobinas/${id}`),
   getClientes: () => api.get('/bobinas/clientes'),
+  verificarAutorizacionLider: (credenciales) => api.post('/bobinas/verificar-autorizacion', credenciales),
 };
