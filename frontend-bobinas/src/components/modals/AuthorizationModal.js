@@ -1,3 +1,4 @@
+// src/components/modals/AuthorizationModal.js
 import React from 'react';
 import {
   Dialog,
@@ -20,7 +21,8 @@ const AuthorizationModal = ({
   credencialesLider,
   onCredencialesChange,
   onAuthorize,
-  autorizando
+  autorizando,
+  error // Nueva prop para errores
 }) => {
   return (
     <Dialog
@@ -85,8 +87,24 @@ const AuthorizationModal = ({
           textAlign: 'center',
           width: '100%',
           height: '100%',
-          gap: 1.5 // junta los elementos
+          gap: 1.5
         }}>
+          {/* Mostrar error dentro del modal */}
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                borderRadius: '12px',
+                width: '100%',
+                textAlign: 'left',
+                mb: 2
+              }}
+              onClose={() => {}} // No permitir cerrar el error aquí
+            >
+              {error}
+            </Alert>
+          )}
+
           <Alert
             severity="info"
             sx={{
@@ -101,7 +119,7 @@ const AuthorizationModal = ({
             </Typography>
           </Alert>
 
-          <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'flex-start' }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'flex-start', mt: 2 }}>
             Credenciales del Líder:
           </Typography>
 
@@ -115,6 +133,7 @@ const AuthorizationModal = ({
             InputProps={{
               sx: { borderRadius: '8px' }
             }}
+            disabled={autorizando}
           />
           <TextField
             fullWidth
@@ -127,6 +146,7 @@ const AuthorizationModal = ({
             InputProps={{
               sx: { borderRadius: '8px' }
             }}
+            disabled={autorizando}
           />
         </Box>
       </DialogContent>
@@ -144,6 +164,7 @@ const AuthorizationModal = ({
         <Button
           onClick={onClose}
           variant="outlined"
+          disabled={autorizando}
           sx={{
             borderRadius: '8px',
             px: 3,

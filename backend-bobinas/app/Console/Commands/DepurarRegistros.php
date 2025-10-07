@@ -1,4 +1,5 @@
 <?php
+// app/Console/Commands/DepurarRegistros.php
 
 namespace App\Console\Commands;
 

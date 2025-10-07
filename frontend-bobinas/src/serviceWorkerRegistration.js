@@ -1,4 +1,3 @@
-// Este código proviene del template de CRA para registrar un service worker
 // src/serviceWorkerRegistration.js
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||

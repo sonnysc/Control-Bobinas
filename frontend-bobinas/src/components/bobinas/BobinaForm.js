@@ -1,5 +1,4 @@
 // src/components/bobinas/BobinaForm.js
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -64,13 +63,14 @@ const BobinaForm = () => {
     setPreview,
     handleConfirmReplacement,
     handleCancelReplacement,
+    handleCancelAuthorization, // 🔥 AÑADIR ESTA LÍNEA
     handleCredencialesChange,
     verificarLider,
     setError,
     setSuccess,
-    setAutorizacionDialog,
-    setCredencialesLider,
-    isFormValid
+    isFormValid,
+    modalError
+    // 🔥 ELIMINAR: setAutorizacionDialog, setCredencialesLider, setModalError
   } = bobinaForm;
 
   useEffect(() => {
@@ -145,14 +145,12 @@ const BobinaForm = () => {
 
           <AuthorizationModal
             open={autorizacionDialog}
-            onClose={() => {
-              setAutorizacionDialog(false);
-              setCredencialesLider({ username: '', password: '' });
-            }}
+            onClose={handleCancelAuthorization} // 🔥 USAR LA FUNCIÓN CORRECTA
             credencialesLider={credencialesLider}
             onCredencialesChange={handleCredencialesChange}
             onAuthorize={verificarLider}
             autorizando={autorizando}
+            error={modalError}
           />
 
           <form onSubmit={handleSubmit}>

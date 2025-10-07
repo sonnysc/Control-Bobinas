@@ -1,4 +1,4 @@
-// src/context/AuthContext.js
+// src/context/AuthContext.js - Agregar esta función de limpieza
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authService } from '../services/auth';
 
@@ -12,20 +12,27 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Función para limpiar completamente la sesión
+  const clearSession = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('lastActivity');
+    setUser(null);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
     
     if (token && savedUser) {
-      // Verificar si el token es válido
       authService.getMe()
         .then(response => {
           setUser(response.data);
+          // Actualizar última actividad al cargar
+          localStorage.setItem('lastActivity', Date.now().toString());
         })
         .catch(() => {
-          // Token inválido, limpiar storage
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          clearSession(); // Usar la función de limpieza
         })
         .finally(() => {
           setLoading(false);
@@ -40,16 +47,16 @@ export const AuthProvider = ({ children }) => {
       const response = await authService.login(credentials);
       const { token, role, user_id } = response.data;
       
-      // Guardar token y info básica del usuario
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ id: user_id, role }));
+      localStorage.setItem('lastActivity', Date.now().toString()); // Iniciar actividad
       
-      // Obtener información completa del usuario
       const userResponse = await authService.getMe();
       setUser(userResponse.data);
       
       return { success: true };
     } catch (error) {
+      clearSession(); // Limpiar en caso de error
       return { 
         success: false, 
         message: error.response?.data?.error || 'Error de conexión' 
@@ -63,9 +70,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      setUser(null);
+      clearSession(); // Usar la función de limpieza
     }
   };
 
@@ -73,7 +78,8 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     logout,
-    loading
+    loading,
+    clearSession // Exportar para uso externo si es necesario
   };
 
   return (

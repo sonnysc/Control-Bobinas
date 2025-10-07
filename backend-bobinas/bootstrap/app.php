@@ -1,5 +1,5 @@
 <?php
-// boostrap/app.php
+// bootstrap/app.php
 
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,7 +19,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'cors' => CustomCors::class,
             'role' => RoleMiddleware::class,
         ]);
-
+    })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        // Programar depuración diaria a las 2:00 AM
+        $schedule->command('registros:depurar')
+            ->dailyAt('02:00')
+            ->timezone('America/Mexico_City')
+            ->environments(['production'])
+            ->evenInMaintenanceMode();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

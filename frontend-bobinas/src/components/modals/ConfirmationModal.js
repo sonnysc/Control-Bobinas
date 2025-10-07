@@ -1,3 +1,5 @@
+// src/components/modals/ConfirmationModal.js
+
 import React from 'react';
 import {
   Dialog,

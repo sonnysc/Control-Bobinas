@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ActivityTracker from './components/ActivityTracker';
 import Login from './components/auth/Login';
 import Layout from './components/layout/Layout';
 import BobinaList from './components/bobinas/BobinaList';
@@ -12,7 +13,6 @@ import UserList from './components/users/UserList';
 import ConfigList from './components/config/ConfigList';
 import { ROLES } from './utils/constants';
 
-// Crear tema personalizado
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -69,34 +69,33 @@ const theme = createTheme({
   },
 });
 
-// Componente para rutas protegidas
 const ProtectedRoute = ({ children, requiredRoles = [] }) => {
   const { user, loading } = useAuth();
 
-  // Mostrar nada mientras se carga la autenticación
   if (loading) {
     return null;
   }
 
-  // Redirigir al login si no está autenticado
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirigir al home si no tiene los roles requeridos
   if (requiredRoles.length > 0 && !requiredRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 
-  return children;
+  return (
+    <>
+      <ActivityTracker />
+      {children}
+    </>
+  );
 };
 
-// Componente para redirección después del login
 const LoginRedirect = () => {
   const { user } = useAuth();
 
   if (user) {
-    // Redirigir basado en el rol del usuario
     switch (user.role) {
       case ROLES.ADMIN:
       case ROLES.INGENIERO:
@@ -112,31 +111,20 @@ const LoginRedirect = () => {
   return <Login />;
 };
 
-// Componente principal de rutas
+// ✅ CORREGIDO: Quitar la variable 'user' que no se usa
 const AppRoutes = () => {
-  const { user } = useAuth();
-
   return (
     <Routes>
-      {/* Ruta de login */}
       <Route path="/login" element={<LoginRedirect />} />
 
-      {/* Ruta home - diferente contenido según rol */}
       <Route path="/" element={
         <ProtectedRoute>
           <Layout>
-            {user?.role === ROLES.EMBARCADOR ? (
-              // 🔥 CORREGIDO: Mostrar contenido específico para embarcadores
-              <BobinaList />
-            ) : (
-              // Admin, Ingeniero y Líder ven la lista de bobinas
-              <BobinaList />
-            )}
+            <BobinaList />
           </Layout>
         </ProtectedRoute>
       } />
 
-      {/* Solo embarcadores pueden crear bobinas */}
       <Route path="/bobinas/nueva" element={
         <ProtectedRoute requiredRoles={[ROLES.EMBARCADOR]}>
           <Layout>
@@ -145,7 +133,6 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      {/* Solo admin puede editar */}
       <Route path="/bobinas/editar/:id" element={
         <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
@@ -170,13 +157,11 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
 
-      {/* Ruta por defecto - redirigir al home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
 
-// Componente principal de la aplicación
 function App() {
   return (
     <ThemeProvider theme={theme}>

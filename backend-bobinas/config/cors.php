@@ -1,4 +1,4 @@
-<?php
+ <?php
 
 // config/cors.php
 
@@ -11,8 +11,6 @@ return [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
         'http://192.168.84.3:3000',
-        'http://controlbobinas.net',
-        'https://controlbobinas.net',
     ],
 
     'allowed_origins_patterns' => [],

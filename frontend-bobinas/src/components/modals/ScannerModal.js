@@ -1,5 +1,4 @@
 // src/components/modals/ScannerModal.js
-
 import React, { useEffect } from 'react';
 import {
     Dialog,
@@ -9,10 +8,10 @@ import {
     Typography,
     Box,
     Button,
-    Alert
+    Alert,
+    CircularProgress
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { CircularProgress } from '@mui/material';
 
 const ScannerModal = ({
     open,
@@ -23,10 +22,16 @@ const ScannerModal = ({
     onStartScanner,
     onStopScanner
 }) => {
-    // 🔥 CORREGIDO: Iniciar automáticamente cuando se abre el modal
+    // Reiniciar scanner al hacer clic en "Reintentar"
+    const handleRetry = () => {
+        onStopScanner();
+        setTimeout(() => {
+            onStartScanner();
+        }, 500);
+    };
+
     useEffect(() => {
         if (open && !scanning && !qrError) {
-            // Pequeño delay para asegurar que el modal esté completamente renderizado
             const timer = setTimeout(() => {
                 onStartScanner();
             }, 500);
@@ -34,27 +39,6 @@ const ScannerModal = ({
             return () => clearTimeout(timer);
         }
     }, [open, scanning, qrError, onStartScanner]);
-
-    // 🔥 Añadir estilos CSS globalmente
-    useEffect(() => {
-        const style = document.createElement('style');
-        style.textContent = `
-      @keyframes scanLine {
-        0% { top: -100%; }
-        100% { top: 100%; }
-      }
-      @keyframes pulse {
-        0% { opacity: 1; }
-        50% { opacity: 0.5; }
-        100% { opacity: 1; }
-      }
-    `;
-        document.head.appendChild(style);
-
-        return () => {
-            document.head.removeChild(style);
-        };
-    }, []);
 
     return (
         <Dialog
@@ -117,7 +101,7 @@ const ScannerModal = ({
                             {qrError}
                         </Alert>
                         <Button 
-                            onClick={onStartScanner} 
+                            onClick={handleRetry}
                             variant="contained" 
                             sx={{ mt: 2, mr: 1 }}
                         >
@@ -175,20 +159,6 @@ const ScannerModal = ({
                             >
                                 {scanning ? 'Escaneando...' : 'Preparando escáner...'}
                             </Typography>
-
-                            {/* Líneas de escaneo animadas - solo mostrar cuando está escaneando */}
-                            {scanning && (
-                                <Box sx={{
-                                    position: 'absolute',
-                                    top: 0,
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    width: '2px',
-                                    height: '100%',
-                                    background: 'linear-gradient(to bottom, transparent, #00bfff, transparent)',
-                                    animation: 'scanLine 2s infinite linear'
-                                }} />
-                            )}
 
                             {/* Esquinas */}
                             <Box sx={{
@@ -261,7 +231,7 @@ const ScannerModal = ({
                                 <Button
                                     variant="contained"
                                     color="secondary"
-                                    onClick={onStopScanner}
+                                    onClick={onClose}
                                     sx={{
                                         minWidth: '200px',
                                         height: '50px',
@@ -276,7 +246,7 @@ const ScannerModal = ({
                                         transition: 'all 0.3s ease'
                                     }}
                                 >
-                                    ⏹️ Detener Escaneo
+                                    ❌ Cerrar Escáner
                                 </Button>
                             </Box>
                         )}

@@ -1,7 +1,5 @@
 <?php
-
 // app/Http/Controllers/AuthController.php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -24,7 +22,7 @@ class AuthController extends Controller
                 return response()->json(['error' => 'Usuario o contraseña incorrectos'], 401);
             }
 
-            // Crear token con Sanctum - Eliminar tokens existentes primero
+            // Eliminar tokens existentes y crear uno nuevo
             $user->tokens()->delete();
             $token = $user->createToken('auth-token')->plainTextToken;
 
@@ -35,7 +33,8 @@ class AuthController extends Controller
                 'user_id' => $user->id
             ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Error interno del servidor: ' . $e->getMessage()], 500);
+            \Log::error('Error en login: ' . $e->getMessage());
+            return response()->json(['error' => 'Error interno del servidor'], 500);
         }
     }
 
@@ -44,6 +43,7 @@ class AuthController extends Controller
         try {
             return response()->json($request->user());
         } catch (\Exception $e) {
+            \Log::error('Error en me: ' . $e->getMessage());
             return response()->json(['error' => 'Error interno'], 500);
         }
     }
@@ -54,6 +54,7 @@ class AuthController extends Controller
             $request->user()->currentAccessToken()->delete();
             return response()->json(['message' => 'Logout exitoso']);
         } catch (\Exception $e) {
+            \Log::error('Error en logout: ' . $e->getMessage());
             return response()->json(['error' => 'Error al hacer logout'], 500);
         }
     }

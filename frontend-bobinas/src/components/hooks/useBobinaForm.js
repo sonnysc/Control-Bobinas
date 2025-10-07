@@ -1,5 +1,4 @@
 // src/components/hooks/useBobinaForm.js
-
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { bobinaService } from '../../services/bobinas';
@@ -33,6 +32,7 @@ export const useBobinaForm = () => {
   const [lastUsedCliente, setLastUsedCliente] = useState('');
   const [hasMadeFirstRegistration, setHasMadeFirstRegistration] = useState(false);
   const [liderAutorizado, setLiderAutorizado] = useState(null);
+  const [modalError, setModalError] = useState(''); // Nuevo estado para errores del modal
 
   const loadBobina = useCallback(async () => {
     try {
@@ -97,13 +97,22 @@ export const useBobinaForm = () => {
 
   const verificarLider = async () => {
     setAutorizando(true);
-    setError('');
+    setModalError('');
     try {
       const response = await bobinaService.verificarAutorizacionLider(credencialesLider);
       setLiderAutorizado(response.data.lider);
       await ejecutarReemplazo();
     } catch (error) {
-      setError('Error en la autorización: ' + (error.response?.data?.error || 'Credenciales incorrectas'));
+      // Manejar específicamente el error de autorización sin propagarlo
+      if (error.response?.status === 401) {
+        setModalError('Error en la autorización: ' + (error.response?.data?.error || 'Credenciales incorrectas'));
+      } else {
+        setModalError('Error en la autorización: ' + (error.response?.data?.error || 'Error del servidor'));
+      }
+      console.log('Error de autorización de líder (manejado):', error.response?.data);
+
+      // 🔥 Resetear el estado en caso de error también
+      setExistingBobina(null);
     } finally {
       setAutorizando(false);
     }
@@ -132,11 +141,23 @@ export const useBobinaForm = () => {
       setCredencialesLider({ username: '', password: '' });
       setLiderAutorizado(null);
 
+      // Redirigir según el rol
       setTimeout(() => {
-        navigate('/');
+        if (user?.role === ROLES.EMBARCADOR) {
+          // Limpiar formulario para nuevo registro
+          setFormData(prev => ({
+            hu: '',
+            cliente: prev.cliente, // Mantener el cliente
+            foto: null
+          }));
+          setPreview(null);
+          setSuccess('');
+        } else {
+          navigate('/');
+        }
       }, 1500);
     } catch (error) {
-      setError('Error al reemplazar la bobina: ' + (error.response?.data?.message || 'Error del servidor'));
+      setModalError('Error al reemplazar la bobina: ' + (error.response?.data?.message || 'Error del servidor'));
       throw error;
     }
   };
@@ -177,7 +198,7 @@ export const useBobinaForm = () => {
 
         await bobinaService.update(id, updateData);
         setSuccess('Bobina actualizada correctamente');
-        
+
         setTimeout(() => {
           navigate('/');
         }, 1500);
@@ -186,22 +207,34 @@ export const useBobinaForm = () => {
         const formDataToSend = new FormData();
         formDataToSend.append('hu', formData.hu);
         formDataToSend.append('cliente', formData.cliente || '');
-        
+
         if (formData.foto instanceof File) {
           formDataToSend.append('foto', formData.foto);
         }
 
         try {
           await bobinaService.create(formDataToSend);
-          
+
           saveLastUsedCliente(formData.cliente);
           setHasMadeFirstRegistration(true);
-          
+
           setSuccess('Bobina registrada correctamente');
-          
+
+          // MODIFICADO: Comportamiento diferente por rol
           setTimeout(() => {
-            navigate('/');
-          }, 1500);
+            if (user?.role === ROLES.EMBARCADOR) {
+              // Limpiar formulario para nuevo registro
+              setFormData(prev => ({
+                hu: '',
+                cliente: prev.cliente, // Mantener el cliente
+                foto: null
+              }));
+              setPreview(null);
+              setSuccess('');
+            } else {
+              navigate('/');
+            }
+          }, 2000);
         } catch (error) {
           if (error.response?.status === 409) {
             setExistingBobina(error.response.data.bobina_existente);
@@ -246,6 +279,15 @@ export const useBobinaForm = () => {
     }));
   };
 
+  // Agregar una nueva función para cancelar autorización
+  const handleCancelAuthorization = () => {
+    setAutorizacionDialog(false);
+    setCredencialesLider({ username: '', password: '' });
+    setModalError('');
+    setExistingBobina(null); // 🔥 Resetear el estado aquí también
+    setLiderAutorizado(null);
+  };
+
   const handleCredencialesChange = (e) => {
     const { name, value } = e.target;
     setCredencialesLider(prev => ({ ...prev, [name]: value }));
@@ -255,7 +297,7 @@ export const useBobinaForm = () => {
     if (!isEdit) {
       setFormData({
         hu: '',
-        cliente: hasMadeFirstRegistration ? lastUsedCliente : '', // 🔥 Mantener cliente guardado
+        cliente: hasMadeFirstRegistration ? lastUsedCliente : '',
         foto: null
       });
       setPreview(null);
@@ -311,6 +353,7 @@ export const useBobinaForm = () => {
       setAutorizacionDialog(false);
       setCredencialesLider({ username: '', password: '' });
       setLiderAutorizado(null);
+      setModalError('');
     };
   }, []);
 
@@ -319,6 +362,7 @@ export const useBobinaForm = () => {
     formData.cliente.trim() !== '' &&
     (isEdit || formData.foto !== null);
 
+  // En useBobinaForm.js - En la parte del return, asegúrate de incluir handleCancelAuthorization
   return {
     // Estado
     formData,
@@ -337,6 +381,7 @@ export const useBobinaForm = () => {
     isEdit,
     user,
     liderAutorizado,
+    modalError,
 
     // Handlers
     handleInputChange,
@@ -344,6 +389,7 @@ export const useBobinaForm = () => {
     handleSubmit,
     handleConfirmReplacement,
     handleCancelReplacement,
+    handleCancelAuthorization, // 🔥 AÑADIR ESTA LÍNEA
     handleCredencialesChange,
     verificarLider,
     resetForm,
@@ -356,6 +402,7 @@ export const useBobinaForm = () => {
     setHasMadeFirstRegistration,
     setPreview,
     setFormData,
+    setModalError,
 
     // Utilidades
     isFormValid,

@@ -1,5 +1,5 @@
 // src/components/auth/Login.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Paper, TextField, Button, Typography, Box, Alert, CircularProgress } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -12,19 +12,33 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, clearSession } = useAuth(); // Agregar clearSession
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Obtener la ruta a la que redirigir después del login
   const from = location.state?.from?.pathname || '/';
+
+  // Efecto para manejar la redirección por inactividad
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const reason = urlParams.get('reason');
+    
+    if (reason === 'inactivity') {
+      // Limpiar cualquier residuo de sesión anterior
+      clearSession();
+      setError('Su sesión ha expirado por inactividad. Por favor, inicie sesión nuevamente.');
+      
+      // Limpiar el parámetro de la URL
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [location, clearSession]);
 
   const handleChange = (e) => {
     setCredentials({
       ...credentials,
       [e.target.name]: e.target.value
     });
-    // Limpiar error cuando el usuario empiece a escribir
     if (error) {
       setError('');
     }
@@ -32,7 +46,6 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validaciones básicas
     if (!credentials.username.trim() || !credentials.password.trim()) {
       setError('Por favor, complete todos los campos');
       return;
@@ -53,7 +66,7 @@ const Login = () => {
   return (
     <Container 
       component="main" 
-      maxWidth="sm" // Cambiado de "xs" a "sm" para más ancho
+      maxWidth="sm"
       sx={{
         minHeight: '100vh',
         display: 'flex',
@@ -65,20 +78,19 @@ const Login = () => {
       <Paper 
         elevation={3} 
         sx={{ 
-          padding: 3, // Reducido el padding para menos largo
+          padding: 3,
           width: '100%',
           mx: 2
         }}
       >
-        {/* Logo de la empresa - más compacto */}
         <Box 
           sx={{ 
             display: 'flex', 
             justifyContent: 'center', 
-            mb: 2, // Menos margen inferior
+            mb: 2,
             backgroundColor: '#2c3e50',
             borderRadius: 2,
-            p: 2, // Menos padding interno
+            p: 2,
             boxShadow: 2
           }}
         >
@@ -99,7 +111,7 @@ const Login = () => {
           align="center" 
           gutterBottom 
           color="primary"
-          sx={{ mb: 1 }} // Menos espacio inferior
+          sx={{ mb: 1 }}
         >
           {APP_NAME}
         </Typography>
@@ -127,7 +139,7 @@ const Login = () => {
             value={credentials.username}
             onChange={handleChange}
             disabled={loading}
-            size="small" // Campos más compactos
+            size="small"
           />
           <TextField
             margin="normal"
@@ -141,13 +153,13 @@ const Login = () => {
             value={credentials.password}
             onChange={handleChange}
             disabled={loading}
-            size="small" // Campos más compactos
+            size="small"
           />
           <Button
             type="submit"
             fullWidth
             variant="contained"
-            sx={{ mt: 2, mb: 1 }} // Menos margen superior e inferior
+            sx={{ mt: 2, mb: 1 }}
             disabled={loading}
           >
             {loading ? <CircularProgress size={24} /> : 'Iniciar Sesión'}
