@@ -20,14 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
     })
-    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
-        // Programar depuración diaria a las 2:00 AM
-        $schedule->command('registros:depurar')
-            ->dailyAt('02:00')
-            ->timezone('America/Mexico_City')
-            ->environments(['production'])
-            ->evenInMaintenanceMode();
-    })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })->create();
+    })
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
+        // ✅ Programar el comando de depuración para ejecutar diariamente a las 3:00 AM
+        $schedule->command('registros:depurar')->dailyAt('03:00');
+    })
+    ->create();

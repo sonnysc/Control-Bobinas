@@ -109,26 +109,37 @@ class BobinaController extends Controller
 
                 \Log::info('Líder autorizado', ['lider_id' => $lider->id]);
 
-                // Eliminar foto anterior si existe
-                if ($existingBobina->foto_path && Storage::disk('public')->exists($existingBobina->foto_path)) {
-                    \Log::info('Eliminando foto anterior', ['foto_path' => $existingBobina->foto_path]);
-                    Storage::disk('public')->delete($existingBobina->foto_path);
-                }
+                // ✅ MEJORA: Eliminar foto anterior ANTES de almacenar la nueva
+                $fotoPathAnterior = $existingBobina->foto_path;
 
                 \Log::info('Almacenando nueva imagen');
                 $imagePath = $this->storeImage($request);
+
+                // ✅ MEJORA: Verificar que la nueva imagen se almacenó correctamente antes de eliminar la anterior
+                if ($imagePath && Storage::disk('public')->exists($imagePath)) {
+                    \Log::info('Nueva imagen almacenada correctamente', ['nueva_ruta' => $imagePath]);
+
+                    // ✅ ELIMINAR FOTO ANTERIOR solo si existe
+                    if ($fotoPathAnterior && Storage::disk('public')->exists($fotoPathAnterior)) {
+                        \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $fotoPathAnterior]);
+                        Storage::disk('public')->delete($fotoPathAnterior);
+                    }
+                } else {
+                    \Log::error('Error al almacenar nueva imagen');
+                    return response()->json(['error' => 'Error al almacenar la nueva imagen'], 500);
+                }
 
                 \Log::info('Actualizando bobina existente', [
                     'bobina_id' => $existingBobina->id,
                     'nueva_ruta' => $imagePath
                 ]);
 
-                // SOLO LAS COLUMNAS NECESARIAS
+                // Actualizar la bobina existente
                 $existingBobina->update([
                     'cliente' => $request->cliente,
                     'foto_path' => $imagePath,
-                    'aprobado_por' => $lider->id,           // Para "Aprobado por: lider"
-                    'reemplazado_por' => auth()->id(),      // Para "Reemplazado por: embarcador"
+                    'aprobado_por' => $lider->id,
+                    'reemplazado_por' => auth()->id(),
                     'fecha_aprobacion' => now(),
                     'fecha_reemplazo' => now(),
                     'estado_aprobacion' => 'aprobado'
@@ -205,17 +216,29 @@ class BobinaController extends Controller
 
         $autorizacionLider = filter_var($request->input('autorizacion_lider', false), FILTER_VALIDATE_BOOLEAN);
 
+        // ✅ MEJORA: Manejo más robusto del reemplazo de imagen
         if ($request->hasFile('foto')) {
-            if ($bobina->foto_path && Storage::disk('public')->exists($bobina->foto_path)) {
-                Storage::disk('public')->delete($bobina->foto_path);
-            }
-            $imagePath = $this->storeImage($request);
-            $bobina->foto_path = $imagePath;
+            // Almacenar nueva imagen primero
+            $nuevaImagePath = $this->storeImage($request);
 
-            if ($autorizacionLider) {
-                $bobina->reemplazado_por = auth()->id();
-                $bobina->reemplazado_por_nombre = auth()->user()->username;
-                $bobina->fecha_reemplazo = now();
+            if ($nuevaImagePath && Storage::disk('public')->exists($nuevaImagePath)) {
+                \Log::info('Nueva imagen almacenada correctamente', ['nueva_ruta' => $nuevaImagePath]);
+
+                // ✅ Eliminar foto anterior solo si la nueva se almacenó correctamente
+                if ($bobina->foto_path && Storage::disk('public')->exists($bobina->foto_path)) {
+                    \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $bobina->foto_path]);
+                    Storage::disk('public')->delete($bobina->foto_path);
+                }
+
+                $bobina->foto_path = $nuevaImagePath;
+
+                if ($autorizacionLider) {
+                    $bobina->reemplazado_por = auth()->id();
+                    $bobina->fecha_reemplazo = now();
+                }
+            } else {
+                \Log::error('Error al almacenar nueva imagen en update');
+                return response()->json(['error' => 'Error al almacenar la nueva imagen'], 500);
             }
         }
 
@@ -227,7 +250,6 @@ class BobinaController extends Controller
             if ($lider && $lider->role === 'lider') {
                 $bobina->estado_aprobacion = 'aprobado';
                 $bobina->aprobado_por = $lider->id;
-                $bobina->aprobado_por_nombre = $lider->username;
                 $bobina->fecha_aprobacion = now();
             }
         }
@@ -248,11 +270,25 @@ class BobinaController extends Controller
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
-        if ($bobina->foto_path && Storage::disk('public')->exists($bobina->foto_path)) {
-            Storage::disk('public')->delete($bobina->foto_path);
+        // ✅ MEJORA: Log más detallado para eliminación
+        \Log::info('Eliminando bobina', [
+            'bobina_id' => $bobina->id,
+            'hu' => $bobina->hu,
+            'foto_path' => $bobina->foto_path
+        ]);
+
+        if ($bobina->foto_path) {
+            if (Storage::disk('public')->exists($bobina->foto_path)) {
+                \Log::info('Eliminando archivo físico', ['ruta' => $bobina->foto_path]);
+                Storage::disk('public')->delete($bobina->foto_path);
+            } else {
+                \Log::warning('Archivo físico no encontrado', ['ruta' => $bobina->foto_path]);
+            }
         }
 
         $bobina->delete();
+
+        \Log::info('Bobina eliminada exitosamente', ['bobina_id' => $id]);
 
         return response()->json(['message' => 'Bobina eliminada']);
     }
@@ -307,24 +343,37 @@ class BobinaController extends Controller
     // Función para almacenar imagen
     private function storeImage(Request $request)
     {
-        $image = $request->file('foto');
-        $hu = $request->hu;
-        $cliente = $request->cliente ?: 'general';
+        try {
+            $image = $request->file('foto');
+            $hu = $request->hu;
+            $cliente = $request->cliente ?: 'general';
 
-        // Limpiar nombre del cliente para usar en el path
-        $clienteFolder = preg_replace('/[^a-zA-Z0-9]/', '_', $cliente);
-        $folderPath = 'imagenes/' . $clienteFolder . '/' . date('Y-m-d');
-        $fileName = $hu . '_' . time() . '.' . $image->getClientOriginalExtension();
+            // Limpiar nombre del cliente para usar en el path
+            $clienteFolder = preg_replace('/[^a-zA-Z0-9]/', '_', $cliente);
+            $folderPath = 'imagenes/' . $clienteFolder . '/' . date('Y-m-d');
+            $fileName = $hu . '_' . time() . '.' . $image->getClientOriginalExtension();
 
-        $manager = new ImageManager(new Driver());
-        $img = $manager->read($image->getRealPath());
+            $manager = new ImageManager(new Driver());
+            $img = $manager->read($image->getRealPath());
 
-        $img->scale(width: 800);
+            $img->scale(width: 800);
 
-        $fullPath = $folderPath . '/' . $fileName;
-        Storage::disk('public')->put($fullPath, $img->encode());
+            $fullPath = $folderPath . '/' . $fileName;
 
-        return $fullPath;
+            // ✅ MEJORA: Verificar que se pudo almacenar la imagen
+            $stored = Storage::disk('public')->put($fullPath, $img->encode());
+
+            if (!$stored) {
+                \Log::error('Error al almacenar imagen en disco', ['ruta' => $fullPath]);
+                throw new \Exception('No se pudo almacenar la imagen en el servidor');
+            }
+
+            \Log::info('Imagen almacenada exitosamente', ['ruta' => $fullPath]);
+            return $fullPath;
+        } catch (\Exception $e) {
+            \Log::error('Error en storeImage: ' . $e->getMessage());
+            throw $e; // Relanzar la excepción para manejarla en el método caller
+        }
     }
 
     // Función para calcular días restantes
