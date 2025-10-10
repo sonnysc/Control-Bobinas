@@ -1,6 +1,5 @@
 <?php
-
-//src/Http/Controllers/BobinaController.php
+// app/Http/Controllers/BobinaController.php
 
 namespace App\Http\Controllers;
 
@@ -123,6 +122,9 @@ class BobinaController extends Controller
                     if ($fotoPathAnterior && Storage::disk('public')->exists($fotoPathAnterior)) {
                         \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $fotoPathAnterior]);
                         Storage::disk('public')->delete($fotoPathAnterior);
+                        
+                        // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen anterior
+                        $this->eliminarCarpetasVaciasIndividual($fotoPathAnterior);
                     }
                 } else {
                     \Log::error('Error al almacenar nueva imagen');
@@ -228,6 +230,9 @@ class BobinaController extends Controller
                 if ($bobina->foto_path && Storage::disk('public')->exists($bobina->foto_path)) {
                     \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $bobina->foto_path]);
                     Storage::disk('public')->delete($bobina->foto_path);
+                    
+                    // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen anterior
+                    $this->eliminarCarpetasVaciasIndividual($bobina->foto_path);
                 }
 
                 $bobina->foto_path = $nuevaImagePath;
@@ -277,13 +282,16 @@ class BobinaController extends Controller
             'foto_path' => $bobina->foto_path
         ]);
 
-        if ($bobina->foto_path) {
-            if (Storage::disk('public')->exists($bobina->foto_path)) {
-                \Log::info('Eliminando archivo físico', ['ruta' => $bobina->foto_path]);
-                Storage::disk('public')->delete($bobina->foto_path);
-            } else {
-                \Log::warning('Archivo físico no encontrado', ['ruta' => $bobina->foto_path]);
-            }
+        $fotoPath = $bobina->foto_path;
+
+        if ($fotoPath && Storage::disk('public')->exists($fotoPath)) {
+            \Log::info('Eliminando archivo físico', ['ruta' => $fotoPath]);
+            Storage::disk('public')->delete($fotoPath);
+            
+            // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen
+            $this->eliminarCarpetasVaciasIndividual($fotoPath);
+        } else {
+            \Log::warning('Archivo físico no encontrado', ['ruta' => $fotoPath]);
         }
 
         $bobina->delete();
@@ -395,5 +403,43 @@ class BobinaController extends Controller
         }
 
         return $bobina;
+    }
+
+    /**
+     * Elimina carpetas vacías después de eliminar un archivo individual
+     */
+    private function eliminarCarpetasVaciasIndividual(string $filePath): void
+    {
+        try {
+            $directorios = explode('/', dirname($filePath));
+            $currentPath = '';
+            
+            // Reconstruir y verificar cada nivel del path desde el más específico
+            foreach ($directorios as $dir) {
+                $currentPath = $currentPath ? $currentPath . '/' . $dir : $dir;
+                
+                if ($currentPath !== 'imagenes' && $this->esCarpetaVacia($currentPath)) {
+                    Storage::disk('public')->deleteDirectory($currentPath);
+                    \Log::info("Carpeta vacía eliminada individualmente: {$currentPath}");
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error("Error al eliminar carpetas vacías individual: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Verifica si una carpeta está vacía (mismo método que en el comando)
+     */
+    private function esCarpetaVacia(string $carpeta): bool
+    {
+        if (!Storage::disk('public')->exists($carpeta)) {
+            return false;
+        }
+
+        $archivos = Storage::disk('public')->files($carpeta);
+        $subcarpetas = Storage::disk('public')->directories($carpeta);
+
+        return empty($archivos) && empty($subcarpetas);
     }
 }

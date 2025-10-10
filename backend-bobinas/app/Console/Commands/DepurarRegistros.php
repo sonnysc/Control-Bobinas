@@ -65,7 +65,68 @@ class DepurarRegistros extends Command
         }
 
         $this->info("Eliminadas {$countDefault} bobinas con configuración por defecto");
-        
+
+        // ✅ NUEVO: Eliminar carpetas vacías
+        $carpetasEliminadas = $this->eliminarCarpetasVacias();
+        $this->info("Eliminadas {$carpetasEliminadas} carpetas vacías");
+
         return Command::SUCCESS;
+    }
+
+    /**
+     * Elimina carpetas vacías en el directorio de imágenes
+     */
+    private function eliminarCarpetasVacias(): int
+    {
+        $directorioBase = 'imagenes';
+        $carpetasEliminadas = 0;
+
+        try {
+            // Obtener todas las carpetas recursivamente
+            $todasLasCarpetas = Storage::disk('public')->allDirectories($directorioBase);
+            
+            // Ordenar por profundidad (más profundo primero) para eliminar desde adentro hacia afuera
+            usort($todasLasCarpetas, function($a, $b) {
+                return substr_count($b, '/') - substr_count($a, '/');
+            });
+
+            foreach ($todasLasCarpetas as $carpeta) {
+                if ($this->esCarpetaVacia($carpeta)) {
+                    Storage::disk('public')->deleteDirectory($carpeta);
+                    $carpetasEliminadas++;
+                    $this->info("Carpeta vacía eliminada: {$carpeta}");
+                }
+            }
+
+            // Verificar también el directorio base de imágenes
+            if ($this->esCarpetaVacia($directorioBase)) {
+                Storage::disk('public')->deleteDirectory($directorioBase);
+                $carpetasEliminadas++;
+                $this->info("Directorio base de imágenes eliminado por estar vacío");
+            }
+
+        } catch (\Exception $e) {
+            $this->error("Error al eliminar carpetas vacías: " . $e->getMessage());
+        }
+
+        return $carpetasEliminadas;
+    }
+
+    /**
+     * Verifica si una carpeta está vacía
+     */
+    private function esCarpetaVacia(string $carpeta): bool
+    {
+        // Verificar si la carpeta existe
+        if (!Storage::disk('public')->exists($carpeta)) {
+            return false;
+        }
+
+        // Obtener todos los archivos y subcarpetas
+        $archivos = Storage::disk('public')->files($carpeta);
+        $subcarpetas = Storage::disk('public')->directories($carpeta);
+
+        // La carpeta está vacía si no tiene archivos ni subcarpetas
+        return empty($archivos) && empty($subcarpetas);
     }
 }

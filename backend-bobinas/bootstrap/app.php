@@ -25,6 +25,6 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
         // ✅ Programar el comando de depuración para ejecutar diariamente a las 3:00 AM
-        $schedule->command('registros:depurar')->dailyAt('03:00');
+        $schedule->command('registros:depurar')->dailyAt('08:00');
     })
     ->create();
