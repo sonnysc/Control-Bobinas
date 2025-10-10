@@ -63,14 +63,13 @@ const BobinaForm = () => {
     setPreview,
     handleConfirmReplacement,
     handleCancelReplacement,
-    handleCancelAuthorization, // 🔥 AÑADIR ESTA LÍNEA
+    handleCancelAuthorization,
     handleCredencialesChange,
     verificarLider,
     setError,
     setSuccess,
     isFormValid,
     modalError
-    // 🔥 ELIMINAR: setAutorizacionDialog, setCredencialesLider, setModalError
   } = bobinaForm;
 
   useEffect(() => {
@@ -145,7 +144,7 @@ const BobinaForm = () => {
 
           <AuthorizationModal
             open={autorizacionDialog}
-            onClose={handleCancelAuthorization} // 🔥 USAR LA FUNCIÓN CORRECTA
+            onClose={handleCancelAuthorization}
             credencialesLider={credencialesLider}
             onCredencialesChange={handleCredencialesChange}
             onAuthorize={verificarLider}

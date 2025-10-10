@@ -1,11 +1,11 @@
 <?php
-
 // routes/api.php
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\BobinaController;
 use App\Http\Controllers\ConfiguracionController;
+use App\Http\Controllers\InventoryController;
 use Illuminate\Support\Facades\Route;
 
 // Rutas de Sanctum para CSRF
@@ -19,6 +19,18 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // ✅ RUTAS DE INVENTARIO - Agregar estas rutas
+    Route::prefix('inventario')->group(function () {
+        Route::get('/', [InventoryController::class, 'index']);
+        Route::get('/stats', [InventoryController::class, 'stats']);
+        Route::get('/hu/{hu}', [InventoryController::class, 'findByHU']);
+        Route::get('/{id}', [InventoryController::class, 'show']);
+        Route::post('/scan', [InventoryController::class, 'processScan']);
+        Route::post('/', [InventoryController::class, 'store']);
+        Route::put('/{id}', [InventoryController::class, 'update']);
+        Route::delete('/{id}', [InventoryController::class, 'destroy']);
+    });
 
     // Bobinas - accesible para todos los roles autenticados
     Route::get('/bobinas', [BobinaController::class, 'index']);
@@ -45,5 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserController::class, 'store']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
+
+        // ✅ Inventario - solo admin puede eliminar
+        Route::delete('/inventario/{id}', [InventoryController::class, 'destroy']);
     });
 });
+?>

@@ -27,6 +27,7 @@ export const APP_NAME = process.env.REACT_APP_APP_NAME || 'Control de Embarcacio
 export const MENU_ITEMS = [
   { text: 'Inicio', icon: 'DashboardIcon', path: '/', roles: [ROLES.ADMIN, ROLES.INGENIERO, ROLES.EMBARCADOR, ROLES.LIDER] },
   { text: 'Nueva Bobina', icon: 'AddIcon', path: '/bobinas/nueva', roles: [ROLES.EMBARCADOR] },
+  { text: 'Inventario', icon: 'InventoryIcon', path: '/inventario', roles: [ROLES.ADMIN] }, // ✅ NUEVO
   { text: 'Usuarios', icon: 'PeopleIcon', path: '/usuarios', roles: [ROLES.ADMIN] },
   { text: 'Configuraciones', icon: 'SettingsIcon', path: '/configuraciones', roles: [ROLES.ADMIN] }
 ];

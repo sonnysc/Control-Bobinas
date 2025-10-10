@@ -11,6 +11,7 @@ import BobinaList from './components/bobinas/BobinaList';
 import BobinaForm from './components/bobinas/BobinaForm';
 import UserList from './components/users/UserList';
 import ConfigList from './components/config/ConfigList';
+import Inventario from './pages/Inventario'; // ✅ NUEVA IMPORTACIÓN
 import { ROLES } from './utils/constants';
 
 const theme = createTheme({
@@ -111,7 +112,6 @@ const LoginRedirect = () => {
   return <Login />;
 };
 
-// ✅ CORREGIDO: Quitar la variable 'user' que no se usa
 const AppRoutes = () => {
   return (
     <Routes>
@@ -137,6 +137,15 @@ const AppRoutes = () => {
         <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
           <Layout>
             <BobinaForm />
+          </Layout>
+        </ProtectedRoute>
+      } />
+
+      {/* ✅ NUEVA RUTA - SOLO ADMIN */}
+      <Route path="/inventario" element={
+        <ProtectedRoute requiredRoles={[ROLES.ADMIN]}>
+          <Layout>
+            <Inventario />
           </Layout>
         </ProtectedRoute>
       } />
