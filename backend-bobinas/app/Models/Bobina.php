@@ -20,12 +20,9 @@ class Bobina extends Model
         'user_id',
         'fecha_embarque',
         'fecha_reemplazo',
-        'fecha_borrado',
-        'estado_aprobacion',
         'aprobado_por',
         'reemplazado_por',
         'fecha_aprobacion',
-        'comentarios_aprobacion',
         'estado'
     ];
 
@@ -33,7 +30,6 @@ class Bobina extends Model
         'fecha_embarque' => 'datetime',
         'fecha_reemplazo' => 'datetime',
         'fecha_aprobacion' => 'datetime',
-        'fecha_borrado' => 'datetime'
     ];
 
     protected $appends = ['foto_url'];

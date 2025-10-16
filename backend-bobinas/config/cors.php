@@ -1,5 +1,4 @@
- <?php
-
+<?php
 // config/cors.php
 
 return [
@@ -7,11 +6,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://192.168.84.3:3000',
-    ],
+    'allowed_origins' => ['http://localhost:3001', 'http://192.168.84.3:3001'],
 
     'allowed_origins_patterns' => [],
 

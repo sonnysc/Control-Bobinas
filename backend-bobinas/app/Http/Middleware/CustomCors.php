@@ -11,7 +11,7 @@ class CustomCors
 {
     public function handle(Request $request, Closure $next)
     {
-        $allowedOrigin = 'http://192.168.84.3:3000';
+        $allowedOrigin = 'http://192.168.84.3:3001';
 
         // Handle preflight requests FIRST
         if ($request->getMethod() === 'OPTIONS') {

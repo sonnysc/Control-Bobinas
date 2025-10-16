@@ -10,6 +10,7 @@ const api = axios.create({
 
 // Rutas que no deben cerrar sesión al recibir 401
 const EXCLUDED_401_ROUTES = [
+  '/login', // ← AGREGAR ESTA LÍNEA
   '/bobinas/verificar-autorizacion',
   '/bobinas' // Para el caso de reemplazo con líder
 ];

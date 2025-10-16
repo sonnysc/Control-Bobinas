@@ -18,8 +18,14 @@ class AuthController extends Controller
         try {
             $user = User::where('username', $request->username)->first();
 
-            if (!$user || !Hash::check($request->password, $user->password)) {
-                return response()->json(['error' => 'Usuario o contraseña incorrectos'], 401);
+            // Verificar primero si el usuario existe
+            if (!$user) {
+                return response()->json(['error' => 'El usuario no existe'], 401);
+            }
+
+            // Luego verificar la contraseña
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json(['error' => 'Contraseña incorrecta'], 401);
             }
 
             // Eliminar tokens existentes y crear uno nuevo

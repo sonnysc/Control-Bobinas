@@ -1,4 +1,4 @@
-// src/context/AuthContext.js - Agregar esta función de limpieza
+// src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authService } from '../services/auth';
 
@@ -12,7 +12,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Función para limpiar completamente la sesión
   const clearSession = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -28,11 +27,10 @@ export const AuthProvider = ({ children }) => {
       authService.getMe()
         .then(response => {
           setUser(response.data);
-          // Actualizar última actividad al cargar
           localStorage.setItem('lastActivity', Date.now().toString());
         })
         .catch(() => {
-          clearSession(); // Usar la función de limpieza
+          clearSession();
         })
         .finally(() => {
           setLoading(false);
@@ -49,17 +47,43 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ id: user_id, role }));
-      localStorage.setItem('lastActivity', Date.now().toString()); // Iniciar actividad
+      localStorage.setItem('lastActivity', Date.now().toString());
       
       const userResponse = await authService.getMe();
       setUser(userResponse.data);
       
       return { success: true };
     } catch (error) {
-      clearSession(); // Limpiar en caso de error
+      clearSession();
+      
+      // MEJORA: Manejo específico de errores
+      let errorMessage = 'Error de conexión';
+      
+      if (error.response) {
+        // El servidor respondió con un código de error
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 401) {
+          errorMessage = data?.error || 'Usuario o contraseña incorrectos';
+        } else if (status === 422) {
+          errorMessage = 'Datos de formulario inválidos';
+        } else if (status === 500) {
+          errorMessage = 'Error interno del servidor';
+        } else {
+          errorMessage = data?.error || data?.message || 'Error desconocido';
+        }
+      } else if (error.request) {
+        // La petición fue hecha pero no se recibió respuesta
+        errorMessage = 'No se pudo conectar con el servidor';
+      } else {
+        // Algo pasó al configurar la petición
+        errorMessage = error.message || 'Error de configuración';
+      }
+      
       return { 
         success: false, 
-        message: error.response?.data?.error || 'Error de conexión' 
+        message: errorMessage 
       };
     }
   };
@@ -70,7 +94,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     } finally {
-      clearSession(); // Usar la función de limpieza
+      clearSession();
     }
   };
 
@@ -79,7 +103,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     loading,
-    clearSession // Exportar para uso externo si es necesario
+    clearSession
   };
 
   return (

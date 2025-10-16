@@ -36,10 +36,6 @@ class BobinaController extends Controller
             $query->where('cliente', $request->cliente);
         }
 
-        if ($request->filled('estado_aprobacion')) {
-            $query->where('estado_aprobacion', $request->estado_aprobacion);
-        }
-
         if ($request->filled('fecha_inicio')) {
             $query->whereDate('fecha_embarque', '>=', $request->fecha_inicio);
         }
@@ -144,7 +140,6 @@ class BobinaController extends Controller
                     'reemplazado_por' => auth()->id(),
                     'fecha_aprobacion' => now(),
                     'fecha_reemplazo' => now(),
-                    'estado_aprobacion' => 'aprobado'
                 ]);
 
                 $existingBobina->load(['usuario', 'aprobador', 'reemplazador']);
@@ -167,7 +162,6 @@ class BobinaController extends Controller
                 'foto_path' => $imagePath,
                 'user_id' => auth()->id(),
                 'fecha_embarque' => now(),
-                'estado_aprobacion' => auth()->user()->role === 'admin' ? 'aprobado' : 'pendiente'
             ]);
 
             $bobina->load(['usuario', 'aprobador', 'reemplazador']);
@@ -253,7 +247,6 @@ class BobinaController extends Controller
         if ($autorizacionLider && $request->filled('lider_id')) {
             $lider = \App\Models\User::find($request->input('lider_id'));
             if ($lider && $lider->role === 'lider') {
-                $bobina->estado_aprobacion = 'aprobado';
                 $bobina->aprobado_por = $lider->id;
                 $bobina->fecha_aprobacion = now();
             }
