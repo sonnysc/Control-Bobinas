@@ -62,15 +62,21 @@ export const useScannerInventario = (onScanSuccess) => {
         videoRef.current,
         (result, err) => {
           if (result) {
-            const scannedValue = result.getText().trim();
+            const rawText = result.getText().trim();
             
-            // ✅ Sin validación - acepta cualquier código escaneado
-            setScanning(false);
-            setScannerModalOpen(false);
-            if (onScanSuccess) {
-              onScanSuccess(scannedValue);
+            // ✅ MODIFICACIÓN: Extraer solo los primeros 9 caracteres
+            const scannedValue = rawText.substring(0, 9);
+            
+            // Validamos que sean 9 dígitos para consistencia, aunque inventario suele ser más flexible
+            // Si tu inventario usa alfanumérico, quita el if regex, pero mantén el substring
+            if (/^[0-9]{9}$/.test(scannedValue)) {
+                setScanning(false);
+                setScannerModalOpen(false);
+                if (onScanSuccess) {
+                  onScanSuccess(scannedValue);
+                }
+                stopScanner();
             }
-            stopScanner();
           }
           if (err && !(err.name === 'NotFoundException')) {
             console.warn('Error de escaneo:', err);

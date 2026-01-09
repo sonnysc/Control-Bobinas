@@ -32,7 +32,7 @@ export const useBobinaForm = () => {
   const [lastUsedCliente, setLastUsedCliente] = useState('');
   const [hasMadeFirstRegistration, setHasMadeFirstRegistration] = useState(false);
   const [liderAutorizado, setLiderAutorizado] = useState(null);
-  const [modalError, setModalError] = useState(''); // Nuevo estado para errores del modal
+  const [modalError, setModalError] = useState('');
 
   const loadBobina = useCallback(async () => {
     try {
@@ -70,6 +70,24 @@ export const useBobinaForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // ✅ NUEVO: Función para eliminar una sugerencia de cliente incorrecta
+  const removeClientSuggestion = async (clientName) => {
+    setLoading(true);
+    try {
+      await bobinaService.deleteClient(clientName);
+      // Recargamos la lista para que desaparezca la sugerencia inmediatamente
+      await loadClientes();
+      setSuccess(`Cliente "${clientName}" eliminado de las sugerencias.`);
+      // Limpiamos el mensaje de éxito después de un momento
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError('No se pudo eliminar el cliente. Verifique permisos.');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFileSelect = async (file, fromCamera = false) => {
     if (!file) return;
     setError('');
@@ -103,15 +121,12 @@ export const useBobinaForm = () => {
       setLiderAutorizado(response.data.lider);
       await ejecutarReemplazo();
     } catch (error) {
-      // Manejar específicamente el error de autorización sin propagarlo
       if (error.response?.status === 401) {
         setModalError('Error en la autorización: ' + (error.response?.data?.error || 'Credenciales incorrectas'));
       } else {
         setModalError('Error en la autorización: ' + (error.response?.data?.error || 'Error del servidor'));
       }
       console.log('Error de autorización de líder (manejado):', error.response?.data);
-
-      // 🔥 Resetear el estado en caso de error también
       setExistingBobina(null);
     } finally {
       setAutorizando(false);
@@ -141,13 +156,11 @@ export const useBobinaForm = () => {
       setCredencialesLider({ username: '', password: '' });
       setLiderAutorizado(null);
 
-      // Redirigir según el rol
       setTimeout(() => {
         if (user?.role === ROLES.EMBARCADOR) {
-          // Limpiar formulario para nuevo registro
           setFormData(prev => ({
             hu: '',
-            cliente: prev.cliente, // Mantener el cliente
+            cliente: prev.cliente,
             foto: null
           }));
           setPreview(null);
@@ -168,7 +181,6 @@ export const useBobinaForm = () => {
     setError('');
     setSuccess('');
 
-    // Validaciones básicas
     if (!formData.hu || !/^[0-9]{9}$/.test(formData.hu)) {
       setError('El HU debe tener exactamente 9 dígitos');
       setLoading(false);
@@ -189,7 +201,6 @@ export const useBobinaForm = () => {
 
     try {
       if (isEdit) {
-        // Para edición
         const updateData = {
           hu: formData.hu,
           cliente: formData.cliente,
@@ -203,7 +214,6 @@ export const useBobinaForm = () => {
           navigate('/');
         }, 1500);
       } else {
-        // Para creación
         const formDataToSend = new FormData();
         formDataToSend.append('hu', formData.hu);
         formDataToSend.append('cliente', formData.cliente || '');
@@ -220,13 +230,11 @@ export const useBobinaForm = () => {
 
           setSuccess('Bobina registrada correctamente');
 
-          // MODIFICADO: Comportamiento diferente por rol
           setTimeout(() => {
             if (user?.role === ROLES.EMBARCADOR) {
-              // Limpiar formulario para nuevo registro
               setFormData(prev => ({
                 hu: '',
-                cliente: prev.cliente, // Mantener el cliente
+                cliente: prev.cliente,
                 foto: null
               }));
               setPreview(null);
@@ -279,12 +287,11 @@ export const useBobinaForm = () => {
     }));
   };
 
-  // Agregar una nueva función para cancelar autorización
   const handleCancelAuthorization = () => {
     setAutorizacionDialog(false);
     setCredencialesLider({ username: '', password: '' });
     setModalError('');
-    setExistingBobina(null); // 🔥 Resetear el estado aquí también
+    setExistingBobina(null);
     setLiderAutorizado(null);
   };
 
@@ -307,9 +314,8 @@ export const useBobinaForm = () => {
   }, [isEdit, hasMadeFirstRegistration, lastUsedCliente]);
 
   useEffect(() => {
-    if (user?.role === ROLES.ADMIN || user?.role === ROLES.INGENIERO) {
-      loadClientes();
-    }
+    loadClientes();
+    
     if (isEdit && user?.role === ROLES.ADMIN) {
       loadBobina();
     }
@@ -343,7 +349,6 @@ export const useBobinaForm = () => {
     }
   }, [user, isEdit]);
 
-  // Limpiar estados al desmontar
   useEffect(() => {
     return () => {
       setError('');
@@ -362,15 +367,13 @@ export const useBobinaForm = () => {
     formData.cliente.trim() !== '' &&
     (isEdit || formData.foto !== null);
 
-  // En useBobinaForm.js - En la parte del return, asegúrate de incluir handleCancelAuthorization
   return {
-    // Estado
     formData,
     preview,
     loading,
     error,
     success,
-    clientes,
+    clientes, 
     existingBobina,
     confirmReplacementDialog,
     autorizacionDialog,
@@ -382,19 +385,15 @@ export const useBobinaForm = () => {
     user,
     liderAutorizado,
     modalError,
-
-    // Handlers
     handleInputChange,
     handleFileSelect,
     handleSubmit,
     handleConfirmReplacement,
     handleCancelReplacement,
-    handleCancelAuthorization, // 🔥 AÑADIR ESTA LÍNEA
+    handleCancelAuthorization,
     handleCredencialesChange,
     verificarLider,
     resetForm,
-
-    // Setters
     setError,
     setSuccess,
     setAutorizacionDialog,
@@ -403,8 +402,7 @@ export const useBobinaForm = () => {
     setPreview,
     setFormData,
     setModalError,
-
-    // Utilidades
+    removeClientSuggestion, 
     isFormValid,
     navigate,
   };

@@ -12,7 +12,7 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
-import { Close, Camera } from '@mui/icons-material';
+import { Close, CameraAlt, CropFree } from '@mui/icons-material';
 
 const CameraModal = ({
   open,
@@ -37,7 +37,7 @@ const CameraModal = ({
     setTimeout(() => {
       setFlash(false);
       onTakePhoto();
-    }, 200); // breve efecto de flash
+    }, 200);
   };
 
   const handleVideoLoad = () => {
@@ -67,10 +67,15 @@ const CameraModal = ({
         py: 2,
         background: 'linear-gradient(180deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%)',
         position: 'relative',
-        borderBottom: '1px solid rgba(255,255,255,0.1)'
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 1
       }}>
+        <CameraAlt sx={{ color: '#2196f3' }} />
         <Typography variant="h6" sx={{ fontWeight: 600, fontSize: isMobile ? '1.1rem' : '1.25rem' }}>
-          📸 Tomar Fotografía de la Bobina
+          Tomar Fotografía
         </Typography>
         <IconButton
           onClick={onClose}
@@ -116,31 +121,22 @@ const CameraModal = ({
             {isLoading && (
               <Box sx={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                top: 0, left: 0, right: 0, bottom: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: 'rgba(0,0,0,0.7)',
                 zIndex: 10
               }}>
                 <CircularProgress sx={{ color: 'white' }} />
                 <Typography variant="body2" sx={{ color: 'white', ml: 2 }}>
-                  Cargando cámara...
+                  Iniciando cámara...
                 </Typography>
               </Box>
             )}
 
-            {/* Flash visual */}
             {flash && (
               <Box sx={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+                top: 0, left: 0, right: 0, bottom: 0,
                 backgroundColor: 'white',
                 opacity: 0.8,
                 zIndex: 30,
@@ -151,57 +147,46 @@ const CameraModal = ({
             {/* Marco de encuadre */}
             <Box sx={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
+              top: '50%', left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: '250px',
-              height: '250px',
+              width: '250px', height: '250px',
               border: '4px solid #00bfff',
               borderRadius: '8px',
               zIndex: 5,
               pointerEvents: 'none',
               boxShadow: '0 0 20px #00bfff'
             }}>
-
-              <Typography
-                variant="body2"
-                sx={{
-                  position: 'absolute',
-                  top: '-50px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  color: 'white',
-                  backgroundColor: 'rgba(0,0,0,0.6)',
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  fontWeight: 500,
-                  fontSize: '0.9rem',
-                  backdropFilter: 'blur(6px)',
-                  textAlign: 'center',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                📋 Encuadra la bobina dentro del marco
-              </Typography>
+              <Box sx={{
+                position: 'absolute',
+                top: '-50px', left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'white',
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                backdropFilter: 'blur(6px)',
+                whiteSpace: 'nowrap'
+              }}>
+                <CropFree fontSize="small" />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Encuadre la bobina
+                </Typography>
+              </Box>
 
               {/* Cruz central */}
               <Box sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
+                position: 'absolute', top: '50%', left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '15px',
-                height: '2px',
-                backgroundColor: '#00bfff'
+                width: '15px', height: '2px', backgroundColor: '#00bfff'
               }} />
               <Box sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
+                position: 'absolute', top: '50%', left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '15px',
-                height: '2px',
-                backgroundColor: 'rgba(255,255,255,0.7)'
+                width: '15px', height: '2px', backgroundColor: 'rgba(255,255,255,0.7)',
+                transform: 'translate(-50%, -50%) rotate(90deg)'
               }} />
             </Box>
 
@@ -219,56 +204,36 @@ const CameraModal = ({
               }}
             />
 
-            {/* Controles */}
             <Box sx={{
               position: 'absolute',
-              bottom: isMobile ? 80 : 40, // más alto en móviles
+              bottom: isMobile ? 80 : 40,
               left: '50%',
               transform: 'translateX(-50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              width: '100%',
-              padding: '0 20px'
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              width: '100%', padding: '0 20px'
             }}>
-
               <Button
                 variant="contained"
-                startIcon={<Camera />}
+                startIcon={<CameraAlt />}
                 onClick={handleTakePhoto}
                 disabled={isLoading}
                 sx={{
-                  minWidth: '200px',
-                  height: '60px',
+                  minWidth: '200px', height: '60px',
                   borderRadius: '30px',
                   backgroundColor: '#2196f3',
-                  fontSize: '1.1rem',
-                  fontWeight: 'bold',
-                  '&:hover': {
-                    backgroundColor: '#1976d2',
-                    transform: 'scale(1.05)'
-                  },
-                  '&:disabled': { backgroundColor: '#666' },
+                  fontSize: '1.1rem', fontWeight: 'bold',
+                  '&:hover': { backgroundColor: '#1976d2', transform: 'scale(1.05)' },
                   transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                  animation: isLoading ? 'pulse 1.5s infinite' : 'none'
+                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
                 }}
               >
-                Tomar Foto
+                Capturar
               </Button>
             </Box>
           </>
         )}
       </DialogContent>
-
-      {/* Animaciones */}
       <style jsx>{`
-        @keyframes pulse {
-          0% { opacity: 1; }
-          50% { opacity: 0.5; }
-          100% { opacity: 1; }
-        }
         @keyframes flashFade {
           0% { opacity: 0.8; }
           100% { opacity: 0; }

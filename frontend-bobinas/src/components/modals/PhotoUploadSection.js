@@ -61,13 +61,16 @@ const PhotoUploadSection = ({
         startIcon={<CloudUpload />}
         onClick={isMobile ? openUploadMenu : () => fileInputRef.current?.click()}
         sx={{
-          height: '56px',
-          py: '12px',
+          height: '40px', // ✅ Mismo alto delgado que los inputs
+          borderRadius: '8px', // ✅ Bordes redondeados
+          textTransform: 'none', // Texto normal para estilo moderno
+          fontWeight: 500,
           borderColor: formData.foto ? 'success.main' : 'primary.main',
           color: formData.foto ? 'success.main' : 'primary.main',
+          backgroundColor: formData.foto ? 'rgba(46, 125, 50, 0.04)' : 'white',
           '&:hover': {
             borderColor: formData.foto ? 'success.dark' : 'primary.dark',
-            backgroundColor: formData.foto ? 'success.light' : 'primary.light',
+            backgroundColor: formData.foto ? 'rgba(46, 125, 50, 0.1)' : 'rgba(25, 118, 210, 0.04)',
           }
         }}
         color={formData.foto ? 'success' : 'primary'}
@@ -87,16 +90,17 @@ const PhotoUploadSection = ({
           vertical: 'top',
           horizontal: 'center',
         }}
+        PaperProps={{
+            sx: { borderRadius: '12px', mt: 1, boxShadow: 3 }
+        }}
       >
         <MenuItem
           onClick={handleTakePhoto}
           disabled={!isCameraAvailable}
-          sx={{
-            opacity: isCameraAvailable ? 1 : 0.5
-          }}
+          sx={{ py: 1.5 }}
         >
-          <Camera sx={{ mr: 1, color: isCameraAvailable ? 'primary.main' : 'text.disabled' }} />
-          Tomar foto
+          <Camera sx={{ mr: 1.5, color: isCameraAvailable ? 'primary.main' : 'text.disabled' }} />
+          <Typography>Tomar foto</Typography>
           {!isCameraAvailable && (
             <Typography variant="caption" sx={{ ml: 1, color: 'text.disabled' }}>
               (No disponible)
@@ -104,9 +108,9 @@ const PhotoUploadSection = ({
           )}
         </MenuItem>
 
-        <MenuItem onClick={handleChooseFromLibrary}>
-          <PhotoLibrary sx={{ mr: 1, color: 'primary.main' }} />
-          Elegir de galería
+        <MenuItem onClick={handleChooseFromLibrary} sx={{ py: 1.5 }}>
+          <PhotoLibrary sx={{ mr: 1.5, color: 'primary.main' }} />
+          <Typography>Elegir de galería</Typography>
         </MenuItem>
       </Menu>
 
@@ -121,42 +125,37 @@ const PhotoUploadSection = ({
       />
 
       {formData.foto && (
-        <Typography variant="caption" sx={{ ml: 1, mt: 1, display: 'block', color: 'success.main' }}>
+        <Typography variant="caption" sx={{ ml: 1, mt: 1, display: 'block', color: 'success.main', fontWeight: 600 }}>
           Archivo: {formData.foto.name} ({(formData.foto.size / 1024 / 1024).toFixed(2)} MB)
         </Typography>
       )}
 
       {!formData.foto && !isEdit && (
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'error.main' }}>
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, ml: 1, color: 'error.main' }}>
           * Se requiere fotografía
         </Typography>
       )}
 
-      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'text.secondary' }}>
-        Formatos: JPG, PNG, GIF, WEBP. Máx: 5MB
-      </Typography>
-
-      {isMobile && !isCameraAvailable && (
-        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, color: 'warning.main' }}>
-          ⚠️ Para usar la cámara, permite el acceso en configuración del navegador
-        </Typography>
-      )}
-
+      {/* Preview container */}
       {preview && (
-        <Box sx={{ textAlign: 'center', mt: 2 }}>
-          <Typography variant="h6" gutterBottom>Vista Previa</Typography>
+        <Box sx={{ 
+            mt: 2, 
+            width: '100%', 
+            display: 'flex', 
+            justifyContent: 'center' 
+        }}>
           <Box sx={{
             width: '100%',
             maxWidth: '300px',
-            height: '300px',
-            margin: '0 auto',
-            border: '2px solid #ddd',
-            borderRadius: '8px',
+            height: '200px',
+            border: '1px solid #e0e0e0',
+            borderRadius: '12px',
             overflow: 'hidden',
-            backgroundColor: '#f5f5f5',
+            backgroundColor: '#f8f9fa',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
           }}>
             <img
               src={preview}

@@ -1,7 +1,24 @@
 // src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+// ✅ FUNCIÓN PARA DETECTAR LA IP AUTOMÁTICAMENTE
+const getBaseUrl = () => {
+  // 1. Si hay una variable de entorno explícita en el .env, la respetamos (prioridad alta)
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // 2. Si no, detectamos la IP/Dominio de la barra de direcciones
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname; 
+  
+  
+  return `${protocol}//${hostname}/api`;
+};
+
+const API_BASE_URL = getBaseUrl();
+
+console.log('🔗 Conectando a API en:', API_BASE_URL); // Log útil para depuración
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,9 +27,9 @@ const api = axios.create({
 
 // Rutas que no deben cerrar sesión al recibir 401
 const EXCLUDED_401_ROUTES = [
-  '/login', // ← AGREGAR ESTA LÍNEA
+  '/login',
   '/bobinas/verificar-autorizacion',
-  '/bobinas' // Para el caso de reemplazo con líder
+  '/bobinas'
 ];
 
 api.interceptors.request.use(
@@ -33,14 +50,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Verificar si la ruta está excluida
       const requestUrl = error.config?.url || '';
       const shouldExclude = EXCLUDED_401_ROUTES.some(route => 
         requestUrl.includes(route)
       );
       
       if (!shouldExclude) {
-        // Solo cerrar sesión si no está en la lista de exclusión
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('lastActivity');

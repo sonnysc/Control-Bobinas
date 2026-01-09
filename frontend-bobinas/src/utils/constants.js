@@ -21,7 +21,17 @@ export const ROLE_COLORS = {
   [ROLES.LIDER]: 'info' 
 };
 
-export const API_BASE_URL = process.env.REACT_APP_API_URL ;
+// ✅ Lógica dinámica también aquí para constantes
+const getBaseUrl = () => {
+  if (typeof window === 'undefined') return ''; // Prevenir error en build time
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  
+  const { protocol, hostname } = window.location;
+  // Ajusta el puerto aquí si tu backend no está en el puerto 80/443
+  return `${protocol}//${hostname}/api`;
+};
+
+export const API_BASE_URL = getBaseUrl();
 export const APP_NAME = process.env.REACT_APP_APP_NAME || 'Control de Embarcaciones';
 
 export const MENU_ITEMS = [

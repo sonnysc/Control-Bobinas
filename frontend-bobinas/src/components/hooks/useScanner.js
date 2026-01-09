@@ -63,7 +63,12 @@ export const useScanner = (onScanSuccess) => {
         videoRef.current,
         (result, err) => {
           if (result) {
-            const scannedValue = result.getText().trim();
+            const rawText = result.getText().trim();
+            
+            // ✅ MODIFICACIÓN: Extraer solo los primeros 9 caracteres
+            const scannedValue = rawText.substring(0, 9);
+
+            // Validar que esos 9 caracteres sean dígitos
             if (/^[0-9]{9}$/.test(scannedValue)) {
               setScanning(false);
               setScannerModalOpen(false);
@@ -72,7 +77,8 @@ export const useScanner = (onScanSuccess) => {
               }
               stopScanner();
             } else {
-              setQrError('El código debe contener exactamente 9 dígitos');
+              // Si los primeros 9 caracteres no son números válidos
+              setQrError('El código no inicia con 9 dígitos válidos');
             }
           }
           if (err && !(err.name === 'NotFoundException')) {
@@ -90,7 +96,6 @@ export const useScanner = (onScanSuccess) => {
   const openScannerModal = useCallback(() => {
     setScannerModalOpen(true);
     setQrError('');
-    // 🔥 ELIMINAR: No iniciar automáticamente aquí, dejar que ScannerModal lo maneje
   }, []);
 
   const closeScannerModal = useCallback(() => {

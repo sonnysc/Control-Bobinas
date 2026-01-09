@@ -3,21 +3,22 @@
 
 use Laravel\Sanctum\Sanctum;
 
+$currentHost = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+$currentDomain = preg_replace('/:\d+$/', '', $currentHost);
+
 return [
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', 
-        'localhost,localhost:3000,localhost:3001,127.0.0.1,127.0.0.1:8000,127.0.0.1:8001,::1,192.168.84.3:3001'
+    'stateful' => array_filter(array_merge(
+        explode(',', env('SANCTUM_STATEFUL_DOMAINS', 'localhost,127.0.0.1')),
+        [$currentHost, $currentDomain]
     )),
-
 
     'guard' => ['web'],
 
-
     'expiration' => null,
 
-
     'token_prefix' => env('SANCTUM_TOKEN_PREFIX', ''),
-
 
     'middleware' => [
         'authenticate_session' => Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
