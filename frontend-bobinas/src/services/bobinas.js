@@ -33,6 +33,16 @@ export const bobinaService = {
     });
   },
   delete: (id) => api.delete(`/bobinas/${id}`),
-  getClientes: () => api.get('/bobinas/clientes'),
+  getClientes: (params) => api.get('/bobinas/clientes', { params }),
+  
+  // ✅ NUEVO: Endpoint específico para filtros (todas las variantes)
+  getClientesFiltros: (params) => api.get('/clientes/filtros', { params }),
+  
   verificarAutorizacionLider: (credenciales) => api.post('/bobinas/verificar-autorizacion', credenciales),
+  
+  // ✅ AGREGADA: Función para eliminar cliente de las sugerencias
+  deleteClient: (clientName) => api.post('/clientes/delete', { client_name: clientName }),
+  
+  // Opción para renombrar si la necesitas a futuro
+  renameClient: (currentName, newName) => api.put('/clientes/rename', { current_name: currentName, new_name: newName }),
 };

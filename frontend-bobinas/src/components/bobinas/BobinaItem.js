@@ -1,5 +1,5 @@
 // src/components/bobinas/BobinaItem.js
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -19,14 +19,16 @@ import {
     Business, 
     Event,
     Image as ImageIcon,
-    BrokenImage
+    BrokenImage,
+    History
 } from '@mui/icons-material';
 import { ROLES } from '../../utils/constants';
-import { useState } from 'react';
 
 const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+
+  if (!bobina) return null;
 
   const getDiasRestantesColor = (dias) => {
     const diasRedondeados = Math.round(dias || 0);
@@ -43,23 +45,36 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
     return `${diasRedondeados} días restantes`;
   };
 
-  const isValidImageUrl = (url) => {
-    return url && url.trim() !== '' && url !== 'null' && url !== 'undefined';
-  };
-
-  const getImageUrl = () => {
-    if (!isValidImageUrl(bobina.foto_url)) return null;
+  // ✅ CORRECCIÓN PARA MÓVILES EN RED LOCAL
+  const getImageUrl = (url) => {
+    if (!url) return null;
     
-    // Si la URL contiene '/storage/', la convertimos en relativa
-    if (bobina.foto_url.includes('/storage/')) {
-        const parts = bobina.foto_url.split('/storage/');
-        return `/storage/${parts[1]}`;
+    if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) {
+        return url;
     }
-    
-    return bobina.foto_url;
+
+    let relativePath = url;
+    if (url.includes('storage/')) {
+        const parts = url.split('storage/');
+        relativePath = `/storage/${parts[parts.length - 1]}`;
+    } else if (!url.startsWith('/')) {
+        relativePath = `/${url}`;
+    }
+
+    // Detectar entorno de desarrollo por puerto (3000/3001) o variable NODE_ENV
+    // Esto funciona tanto en localhost como en IP de red (192.168.x.x)
+    const currentPort = window.location.port;
+    const isDevelopment = process.env.NODE_ENV === 'development' || currentPort === '3000' || currentPort === '3001';
+
+    if (isDevelopment) {
+        // Usa el mismo hostname (IP o localhost) que tiene el navegador, pero apunta al puerto del backend
+        return `${window.location.protocol}//${window.location.hostname}:8001${relativePath}`;
+    }
+
+    return relativePath;
   };
 
-  const imageUrl = getImageUrl();
+  const imageUrl = getImageUrl(bobina.foto_url);
 
   return (
     <Card sx={{ 
@@ -106,6 +121,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
               }}
               onLoad={() => setImageLoading(false)}
               onError={() => {
+                console.error("Error cargando imagen en card:", imageUrl);
                 setImageError(true);
                 setImageLoading(false);
               }}
@@ -128,7 +144,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
           }}>
             {imageError ? (
               <>
-                <BrokenImage sx={{ fontSize: 40, mb: 1, opacity: 0.5 }} />
+                <BrokenImage sx={{ fontSize: 40, mb: 1, opacity: 0.5, color: '#f44336' }} />
                 <Typography variant="caption" sx={{ fontWeight: 500 }}>Error de carga</Typography>
               </>
             ) : (
@@ -140,6 +156,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
           </Box>
         )}
         
+        {/* Chip de Estado */}
         <Chip
             label={getDiasRestantesText(bobina.dias_restantes)}
             size="small"
@@ -155,6 +172,7 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
             }}
         />
         
+        {/* Chip de Reemplazo */}
         {bobina.fecha_reemplazo && (
              <Chip
              label="Reemplazado"
@@ -175,7 +193,6 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
 
       {/* 2. Contenido de Información */}
       <CardContent sx={{ flexGrow: 1, p: '20px !important' }}>
-        {/* Header de la tarjeta */}
         <Box sx={{ mb: 2 }}>
             <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: '1px', fontSize: '0.7rem' }}>
                 HU / SERIAL
@@ -193,14 +210,13 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
 
         <Divider sx={{ my: 1.5 }} />
 
-        {/* ✅ AJUSTE AQUÍ: Evitar amontonamiento */}
+        {/* Info alineada horizontalmente */}
         <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            gap: 2 // Espacio mínimo entre operador y fecha
+            gap: 2
         }}>
-            {/* Operador: flex-1 para ocupar espacio y noWrap para cortar si es largo */}
             <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
                 <Avatar 
                     sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: '#e0e0e0', color: '#666', mr: 1, flexShrink: 0 }}
@@ -212,7 +228,6 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
                 </Typography>
             </Box>
             
-            {/* Fecha: flexShrink-0 para asegurar que la fecha siempre se vea completa */}
             <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', flexShrink: 0 }}>
                 <Event sx={{ fontSize: 16, mr: 0.5 }} />
                 <Typography variant="caption">
@@ -220,15 +235,44 @@ const BobinaItem = ({ bobina, onViewDetails, onEditBobina, userRole }) => {
                 </Typography>
             </Box>
         </Box>
+
+        {/* Sección de Modificación */}
+        {bobina.reemplazador && (
+            <Box sx={{ 
+                mt: 1.5, 
+                pt: 1.5, 
+                borderTop: '1px dashed #e0e0e0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5
+            }}>
+                <Tooltip title="Modificado por">
+                    <Avatar 
+                        sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: '#ed6c02', color: 'white' }}
+                    >
+                        <History sx={{ fontSize: 14 }} />
+                    </Avatar>
+                </Tooltip>
+                
+                <Box>
+                    <Typography variant="caption" display="block" sx={{ lineHeight: 1.2, color: 'text.secondary', fontSize: '0.7rem' }}>
+                        Modificado por <Box component="span" fontWeight="600" color="text.primary">{bobina.reemplazador.username}</Box>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                        {new Date(bobina.fecha_reemplazo).toLocaleDateString()}
+                    </Typography>
+                </Box>
+            </Box>
+        )}
       </CardContent>
 
-      {/* 3. Footer de Acciones (Sin ID) */}
+      {/* 3. Footer de Acciones */}
       <Box sx={{ 
           p: 1.5, 
           bgcolor: '#fafafa', 
           borderTop: '1px solid #f0f0f0',
           display: 'flex',
-          justifyContent: 'flex-end', // Alineado a la derecha
+          justifyContent: 'flex-end',
           alignItems: 'center'
       }}>
         <Box>

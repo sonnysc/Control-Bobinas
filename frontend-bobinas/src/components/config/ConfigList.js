@@ -1,31 +1,11 @@
 // src/components/config/ConfigList.js
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Alert,
-  Chip
+  Box, Card, CardContent, Typography, Button, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Paper, IconButton, Dialog, DialogTitle,
+  DialogContent, DialogActions, Alert, Chip, Divider, CircularProgress
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon
-} from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Settings as SettingsIcon, CalendarToday } from '@mui/icons-material';
 import { configService } from '../../services/config';
 import ConfigForm from './ConfigForm';
 import { DEFAULT_RETENTION_DAYS } from '../../utils/constants';
@@ -40,162 +20,102 @@ const ConfigList = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadConfigs();
-  }, []);
-
   const loadConfigs = async () => {
     try {
       setLoading(true);
       const response = await configService.getAll();
       setConfigs(response.data);
-    } catch (error) {
-      setError('Error al cargar las configuraciones');
-      console.error('Error loading configs:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  const handleCreate = () => {
-    setEditingConfig(null);
-    setOpenForm(true);
-  };
+  useEffect(() => { loadConfigs(); }, []);
 
-  const handleEdit = (config) => {
-    setEditingConfig(config);
-    setOpenForm(true);
-  };
-
-  const handleDelete = (config) => {
-    setConfigToDelete(config);
-    setDeleteDialog(true);
-  };
+  const handleCreate = () => { setEditingConfig(null); setOpenForm(true); };
+  const handleEdit = (config) => { setEditingConfig(config); setOpenForm(true); };
+  const handleDelete = (config) => { setConfigToDelete(config); setDeleteDialog(true); };
 
   const confirmDelete = async () => {
     try {
       await configService.delete(configToDelete.id);
-      setSuccess('Configuración eliminada correctamente');
+      setSuccess('Eliminado correctamente');
       setDeleteDialog(false);
-      setConfigToDelete(null);
       loadConfigs();
-      
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error) {
-      setError('Error al eliminar la configuración');
-      console.error('Error deleting config:', error);
-    }
-  };
-
-  const handleFormClose = () => {
-    setOpenForm(false);
-    setEditingConfig(null);
+    } catch (error) { setError('Error al eliminar'); }
   };
 
   const handleFormSuccess = () => {
     setOpenForm(false);
-    setEditingConfig(null);
-    setSuccess(editingConfig ? 'Configuración actualizada correctamente' : 'Configuración creada correctamente');
+    setSuccess('Guardado correctamente');
     loadConfigs();
-    
-    setTimeout(() => setSuccess(''), 3000);
   };
 
   return (
-    <Box>
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5">
-              Configuración de Días de Retención
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-            >
-              Nueva Configuración
+    <Box sx={{ width: '100%', maxWidth: '1000px', mx: 'auto', pb: 4 }}>
+      <Card sx={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+        <CardContent sx={{ p: { xs: 2, md: 4 } }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Box>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#1565c0', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SettingsIcon /> Configuración de Retención
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: '600px' }}>
+                    Defina cuántos días se conservarán los registros por cliente. Valor por defecto: <strong>{DEFAULT_RETENTION_DAYS} días</strong>.
+                </Typography>
+            </Box>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate} sx={{ borderRadius: '10px', fontWeight: 600, textTransform: 'none' }}>
+              Nueva Regla
             </Button>
           </Box>
-          
-          <Typography variant="body2" color="text.secondary">
-            Configure los días de retención para cada cliente. Los registros más antiguos se eliminarán automáticamente.
-            El valor por defecto para clientes sin configuración específica es {DEFAULT_RETENTION_DAYS} días.
-          </Typography>
-        </CardContent>
-      </Card>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
+          <Divider sx={{ mb: 3 }} />
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>
-          {success}
-        </Alert>
-      )}
+          {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '8px' }}>{error}</Alert>}
+          {success && <Alert severity="success" sx={{ mb: 2, borderRadius: '8px' }}>{success}</Alert>}
 
-      <Card>
-        <CardContent>
-          <TableContainer component={Paper}>
+          <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e0e0e0', borderRadius: '12px' }}>
             <Table>
-              <TableHead>
+              <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                 <TableRow>
-                  <TableCell>Cliente</TableCell>
-                  <TableCell>Días de Retención</TableCell>
-                  <TableCell>Fecha Actualización</TableCell>
-                  <TableCell>Acciones</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#555' }}>CLIENTE</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#555' }}>DÍAS RETENCIÓN</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#555' }}>ÚLTIMA MODIFICACIÓN</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', color: '#555' }}>ACCIONES</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {configs.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={4} align="center">
-                      <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-                        No hay configuraciones registradas. Los clientes usarán el valor por defecto de {DEFAULT_RETENTION_DAYS} días.
+                    <TableCell colSpan={4} align="center" sx={{ py: 5 }}>
+                      <CircularProgress size={40} thickness={4} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Cargando...
                       </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : configs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                      No hay configuraciones personalizadas.
                     </TableCell>
                   </TableRow>
                 ) : (
                   configs.map((config) => (
-                    <TableRow key={config.id}>
+                    <TableRow key={config.id} hover>
                       <TableCell>
-                        <Chip 
-                          label={config.cliente} 
-                          color="primary"
-                          variant="outlined"
-                        />
+                        <Typography fontWeight={600} color="primary.main">{config.cliente}</Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="h6" component="span" color="primary">
-                          {config.dias_retencion}
-                        </Typography>
-                        <Typography variant="body2" component="span" color="text.secondary">
-                          {' '}días
-                        </Typography>
+                        <Chip label={`${config.dias_retencion} días`} size="small" sx={{ fontWeight: 'bold', bgcolor: '#e3f2fd', color: '#1565c0' }} />
                       </TableCell>
-                      <TableCell>
-                        {new Date(config.updated_at).toLocaleDateString()}
+                      <TableCell sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CalendarToday fontSize="small" />
+                            {new Date(config.updated_at).toLocaleDateString()}
+                          </Box>
                       </TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEdit(config)}
-                          color="primary"
-                          title="Editar configuración"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDelete(config)}
-                          color="error"
-                          title="Eliminar configuración"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
+                      <TableCell align="right">
+                        <IconButton size="small" onClick={() => handleEdit(config)} color="primary"><EditIcon /></IconButton>
+                        <IconButton size="small" onClick={() => handleDelete(config)} color="error"><DeleteIcon /></IconButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -206,34 +126,33 @@ const ConfigList = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={openForm} onClose={handleFormClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingConfig ? 'Editar Configuración' : 'Crear Configuración'}
-        </DialogTitle>
-        <DialogContent>
-          <ConfigForm
-            config={editingConfig}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormClose}
-          />
+      <Dialog 
+        open={openForm} 
+        onClose={() => setOpenForm(false)} 
+        maxWidth="sm" 
+        fullWidth 
+        disableRestoreFocus // ✅ Corrección aplicada aquí
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
+        <DialogTitle sx={{ bgcolor: '#1565c0', color: 'white' }}>{editingConfig ? 'Editar Regla' : 'Nueva Regla'}</DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <ConfigForm config={editingConfig} onSuccess={handleFormSuccess} onCancel={() => setOpenForm(false)} />
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteDialog} onClose={() => setDeleteDialog(false)}>
+      <Dialog 
+        open={deleteDialog} 
+        onClose={() => setDeleteDialog(false)} 
+        disableRestoreFocus // ✅ Corrección aplicada aquí
+        PaperProps={{ sx: { borderRadius: '16px' } }}
+      >
         <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
-          <Typography>
-            ¿Está seguro de que desea eliminar la configuración para el cliente "{configToDelete?.cliente}"?
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Los registros de este cliente usarán el valor por defecto de {DEFAULT_RETENTION_DAYS} días después de la eliminación.
-          </Typography>
+            <Typography>¿Eliminar la configuración para <strong>{configToDelete?.cliente}</strong>?</Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialog(false)}>Cancelar</Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Eliminar
-          </Button>
+        <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setDeleteDialog(false)} sx={{ borderRadius: '8px' }}>Cancelar</Button>
+            <Button onClick={confirmDelete} color="error" variant="contained" sx={{ borderRadius: '8px' }}>Eliminar</Button>
         </DialogActions>
       </Dialog>
     </Box>

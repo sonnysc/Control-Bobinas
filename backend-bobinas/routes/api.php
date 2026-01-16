@@ -20,7 +20,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
-    // ✅ RUTAS DE INVENTARIO - Agregar estas rutas
+    // ... (Inventario routes) ...
     Route::prefix('inventario')->group(function () {
         Route::get('/', [InventoryController::class, 'index']);
         Route::get('/stats', [InventoryController::class, 'stats']);
@@ -35,12 +35,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Bobinas - accesible para todos los roles autenticados
     Route::get('/bobinas', [BobinaController::class, 'index']);
     Route::get('/bobinas/clientes', [BobinaController::class, 'getClientes']);
+    Route::get('/clientes/filtros', [BobinaController::class, 'getClientesFiltros'])->middleware('auth:sanctum');
     Route::get('/bobinas/{id}', [BobinaController::class, 'show']);
     Route::post('/bobinas', [BobinaController::class, 'store']);
     Route::post('/bobinas/verificar-autorizacion', [BobinaController::class, 'verificarAutorizacionLider']);
 
     // Embarcadores y admin pueden actualizar
     Route::put('/bobinas/{id}', [BobinaController::class, 'update']);
+
+    // ✅ MOVIDO AQUÍ: Eliminación de cliente ahora disponible para embarcadores
+    // La seguridad se maneja dentro del controlador (ver paso 3)
+    Route::post('/clientes/delete', [BobinaController::class, 'deleteClient']);
 
     // Solo admin puede eliminar bobinas y gestionar configuraciones
     Route::middleware(['role:admin'])->group(function () {
@@ -58,8 +63,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
-        // ✅ Inventario - solo admin puede eliminar
+        // Admin rename
+        Route::put('/clientes/rename', [BobinaController::class, 'updateClientName']);
+
+        // Inventario - solo admin puede eliminar
         Route::delete('/inventario/{id}', [InventoryController::class, 'destroy']);
     });
 });
-?>

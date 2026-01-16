@@ -2,7 +2,38 @@
 import api from './api';
 
 export const authService = {
-  login: (credentials) => api.post('/login', credentials),
-  logout: () => api.post('/logout'),
-  getMe: () => api.get('/me'),
+  // Obtener cookie CSRF
+  getCsrfCookie: () => {
+    return api.get('/sanctum/csrf-cookie', {
+      withCredentials: true,
+      timeout: 10000
+    });
+  },
+
+  // Login
+  login: (credentials) => {
+    return api.post('/login', credentials, {
+      withCredentials: true,
+      timeout: 15000
+    });
+  },
+
+  // Logout
+  logout: () => {
+    return api.post('/logout', {}, {
+      withCredentials: true
+    });
+  },
+
+  // Obtener información del usuario actual
+  getMe: () => {
+    return api.get('/me', {
+      withCredentials: true
+    });
+  },
+
+  // Verificar si el usuario está autenticado
+  checkAuth: () => {
+    return api.get('/me');
+  }
 };

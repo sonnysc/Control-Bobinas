@@ -11,6 +11,7 @@ export const useBobinaForm = () => {
   const { user } = useAuth();
   const isEdit = Boolean(id);
 
+  // Estados del formulario
   const [formData, setFormData] = useState({
     hu: '',
     cliente: '',
@@ -21,19 +22,24 @@ export const useBobinaForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [clientes, setClientes] = useState([]);
+  
+  // Estados para lógica de reemplazo y autorización
   const [existingBobina, setExistingBobina] = useState(null);
   const [confirmReplacementDialog, setConfirmReplacementDialog] = useState(false);
   const [autorizacionDialog, setAutorizacionDialog] = useState(false);
-  const [credencialesLider, setCredencialesLider] = useState({
+  const [credencialesLider, setCredencialesLider] = useState({ // ✅ ESTADO CRÍTICO
     username: '',
     password: ''
   });
   const [autorizando, setAutorizando] = useState(false);
-  const [lastUsedCliente, setLastUsedCliente] = useState('');
-  const [hasMadeFirstRegistration, setHasMadeFirstRegistration] = useState(false);
   const [liderAutorizado, setLiderAutorizado] = useState(null);
   const [modalError, setModalError] = useState('');
 
+  // Estados de preferencias
+  const [lastUsedCliente, setLastUsedCliente] = useState('');
+  const [hasMadeFirstRegistration, setHasMadeFirstRegistration] = useState(false);
+
+  // Cargas iniciales
   const loadBobina = useCallback(async () => {
     try {
       const response = await bobinaService.getById(id);
@@ -70,15 +76,13 @@ export const useBobinaForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // ✅ NUEVO: Función para eliminar una sugerencia de cliente incorrecta
+  // Función para eliminar sugerencia de cliente
   const removeClientSuggestion = async (clientName) => {
     setLoading(true);
     try {
       await bobinaService.deleteClient(clientName);
-      // Recargamos la lista para que desaparezca la sugerencia inmediatamente
       await loadClientes();
       setSuccess(`Cliente "${clientName}" eliminado de las sugerencias.`);
-      // Limpiamos el mensaje de éxito después de un momento
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError('No se pudo eliminar el cliente. Verifique permisos.');
@@ -113,6 +117,12 @@ export const useBobinaForm = () => {
     }
   };
 
+  // Lógica de Autorización
+  const handleCredencialesChange = (e) => {
+    const { name, value } = e.target;
+    setCredencialesLider(prev => ({ ...prev, [name]: value }));
+  };
+
   const verificarLider = async () => {
     setAutorizando(true);
     setModalError('');
@@ -126,7 +136,6 @@ export const useBobinaForm = () => {
       } else {
         setModalError('Error en la autorización: ' + (error.response?.data?.error || 'Error del servidor'));
       }
-      console.log('Error de autorización de líder (manejado):', error.response?.data);
       setExistingBobina(null);
     } finally {
       setAutorizando(false);
@@ -156,6 +165,7 @@ export const useBobinaForm = () => {
       setCredencialesLider({ username: '', password: '' });
       setLiderAutorizado(null);
 
+      // Reset o navegar
       setTimeout(() => {
         if (user?.role === ROLES.EMBARCADOR) {
           setFormData(prev => ({
@@ -209,10 +219,7 @@ export const useBobinaForm = () => {
 
         await bobinaService.update(id, updateData);
         setSuccess('Bobina actualizada correctamente');
-
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
+        setTimeout(() => navigate('/'), 1500);
       } else {
         const formDataToSend = new FormData();
         formDataToSend.append('hu', formData.hu);
@@ -224,10 +231,8 @@ export const useBobinaForm = () => {
 
         try {
           await bobinaService.create(formDataToSend);
-
           saveLastUsedCliente(formData.cliente);
           setHasMadeFirstRegistration(true);
-
           setSuccess('Bobina registrada correctamente');
 
           setTimeout(() => {
@@ -256,16 +261,10 @@ export const useBobinaForm = () => {
       console.error('Error completo:', error);
       if (error.response?.status === 413) {
         setError('La imagen es demasiado grande. Máximo 5MB permitido');
-      } else if (error.response?.data?.errors?.foto) {
-        setError(`Error en la fotografía: ${error.response.data.errors.foto[0]}`);
-      } else if (error.response?.data?.errors?.hu) {
-        setError(`Error en el HU: ${error.response.data.errors.hu[0]}`);
       } else if (error.response?.data?.message) {
         setError(error.response.data.message);
-      } else if (error.response?.data?.error) {
-        setError(error.response.data.error);
       } else {
-        setError('Error al procesar la solicitud: ' + (error.message || 'Error desconocido'));
+        setError('Error al procesar la solicitud.');
       }
     } finally {
       setLoading(false);
@@ -295,11 +294,6 @@ export const useBobinaForm = () => {
     setLiderAutorizado(null);
   };
 
-  const handleCredencialesChange = (e) => {
-    const { name, value } = e.target;
-    setCredencialesLider(prev => ({ ...prev, [name]: value }));
-  };
-
   const resetForm = useCallback(() => {
     if (!isEdit) {
       setFormData({
@@ -315,14 +309,11 @@ export const useBobinaForm = () => {
 
   useEffect(() => {
     loadClientes();
-    
     if (isEdit && user?.role === ROLES.ADMIN) {
       loadBobina();
     }
-
     const savedCliente = localStorage.getItem('lastUsedCliente');
     const hasRegistered = localStorage.getItem('hasMadeFirstRegistration');
-
     if (savedCliente && hasRegistered === 'true' && !isEdit) {
       setFormData(prev => ({ ...prev, cliente: savedCliente }));
       setLastUsedCliente(savedCliente);
@@ -342,10 +333,7 @@ export const useBobinaForm = () => {
     if (user && !isEdit) {
       setHasMadeFirstRegistration(false);
       setLastUsedCliente('');
-      setFormData(prev => ({
-        ...prev,
-        cliente: ''
-      }));
+      setFormData(prev => ({ ...prev, cliente: '' }));
     }
   }, [user, isEdit]);
 
@@ -377,7 +365,7 @@ export const useBobinaForm = () => {
     existingBobina,
     confirmReplacementDialog,
     autorizacionDialog,
-    credencialesLider,
+    credencialesLider, // ✅ SE EXPORTA CORRECTAMENTE
     autorizando,
     lastUsedCliente,
     hasMadeFirstRegistration,
@@ -397,7 +385,7 @@ export const useBobinaForm = () => {
     setError,
     setSuccess,
     setAutorizacionDialog,
-    setCredencialesLider,
+    setCredencialesLider, // ✅ SE EXPORTA CORRECTAMENTE
     setHasMadeFirstRegistration,
     setPreview,
     setFormData,

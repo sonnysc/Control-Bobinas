@@ -4,8 +4,6 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use App\Http\Middleware\CustomCors;
-use App\Http\Middleware\RoleMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,16 +13,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // ✅ AGREGAR CORS DINÁMICO GLOBALMENTE
+        $middleware->append(\App\Http\Middleware\CustomCors::class);
+        
         $middleware->alias([
-            'cors' => CustomCors::class,
-            'role' => RoleMiddleware::class,
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+        ]);
+        
+        // ✅ Asegurar que las cookies se envíen correctamente
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+            'sanctum/csrf-cookie',
+            'login',
+            'logout'
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })
-    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule) {
-        // ✅ Programar el comando de depuración para ejecutar diariamente a las 3:00 AM
-        $schedule->command('registros:depurar')->dailyAt('08:00');
     })
     ->create();

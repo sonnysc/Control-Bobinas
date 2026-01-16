@@ -11,22 +11,27 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lastActivity, setLastActivity] = useState(null);
 
   const clearSession = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('lastActivity');
     setUser(null);
+    setLastActivity(null);
   };
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
+    const savedActivity = localStorage.getItem('lastActivity');
     
     if (token && savedUser) {
       authService.getMe()
         .then(response => {
           setUser(response.data);
+          const activityTime = savedActivity ? parseInt(savedActivity) : Date.now();
+          setLastActivity(activityTime);
           localStorage.setItem('lastActivity', Date.now().toString());
         })
         .catch(() => {
@@ -42,8 +47,25 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      console.log('🔐 INICIANDO PROCESO DE LOGIN');
+      
+      // 1. OBTENER COOKIE CSRF (IMPORTANTE PARA SESSION)
+      console.log('🔄 Obteniendo cookie CSRF de Sanctum...');
+      try {
+        await authService.getCsrfCookie();
+        console.log('✅ Cookie CSRF obtenida correctamente');
+      } catch (csrfError) {
+        console.error('❌ Error obteniendo CSRF cookie:', csrfError);
+        throw new Error('No se pudo establecer conexión segura con el servidor');
+      }
+      
+      // 2. HACER LOGIN CON CREDENCIALES
+      console.log('📤 Enviando credenciales de login...');
       const response = await authService.login(credentials);
       const { token, role, user_id } = response.data;
+      
+      console.log('✅ LOGIN EXITOSO');
+      console.log('👤 Usuario ID:', user_id);
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ id: user_id, role }));
@@ -51,40 +73,57 @@ export const AuthProvider = ({ children }) => {
       
       const userResponse = await authService.getMe();
       setUser(userResponse.data);
+      setLastActivity(Date.now());
       
-      return { success: true };
+      return { success: true, data: response.data };
     } catch (error) {
-      clearSession();
+      console.error('❌ ERROR EN LOGIN:', error);
       
-      // MEJORA: Manejo específico de errores
-      let errorMessage = 'Error de conexión';
+      let message = 'Error al iniciar sesión';
       
       if (error.response) {
-        // El servidor respondió con un código de error
-        const status = error.response.status;
-        const data = error.response.data;
+        // El servidor respondió con un error
+        console.error('📊 Detalles del error:', error.response.data);
+        console.error('📊 Status:', error.response.status);
         
-        if (status === 401) {
-          errorMessage = data?.error || 'Usuario o contraseña incorrectos';
-        } else if (status === 422) {
-          errorMessage = 'Datos de formulario inválidos';
-        } else if (status === 500) {
-          errorMessage = 'Error interno del servidor';
-        } else {
-          errorMessage = data?.error || data?.message || 'Error desconocido';
+        switch (error.response.status) {
+          case 401:
+            message = error.response.data?.message || 'Usuario o contraseña incorrectos';
+            break;
+          case 422:
+            message = 'Datos de formulario inválidos';
+            break;
+          case 404:
+            message = 'Ruta no encontrada. Verifica la configuración';
+            break;
+          case 419:
+            message = 'Token CSRF expirado o inválido';
+            break;
+          case 500:
+            message = 'Error interno del servidor';
+            break;
+          default:
+            message = `Error ${error.response.status}: ${error.response.data?.message || 'Error desconocido'}`;
         }
       } else if (error.request) {
-        // La petición fue hecha pero no se recibió respuesta
-        errorMessage = 'No se pudo conectar con el servidor';
+        // La petición se hizo pero no hubo respuesta
+        console.error('📡 No hay respuesta del servidor');
+        message = 'No se pudo conectar con el servidor. Verifica que esté ejecutándose';
+        
+        // Información adicional para debugging
+        console.log('💡 SOLUCIÓN: Asegúrate de que Laravel esté corriendo con:');
+        console.log('   php artisan serve --host=0.0.0.0 --port=8001');
+        console.log('💡 Si estás en otro equipo, usa la IP correcta:');
+        console.log('   http://[IP-DEL-SERVIDOR]:3001');
+        
       } else {
-        // Algo pasó al configurar la petición
-        errorMessage = error.message || 'Error de configuración';
+        // Error al configurar la petición
+        console.error('⚙️ Error de configuración:', error.message);
+        message = 'Error de configuración en la aplicación';
       }
       
-      return { 
-        success: false, 
-        message: errorMessage 
-      };
+      clearSession();
+      return { success: false, message };
     }
   };
 
@@ -98,12 +137,20 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateActivity = () => {
+    const now = Date.now();
+    setLastActivity(now);
+    localStorage.setItem('lastActivity', now.toString());
+  };
+
   const value = {
     user,
     login,
     logout,
     loading,
-    clearSession
+    clearSession,
+    lastActivity,
+    updateActivity
   };
 
   return (

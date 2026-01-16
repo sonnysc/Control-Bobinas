@@ -10,9 +10,14 @@ use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class BobinaController extends Controller
 {
+    // Archivo donde guardaremos los clientes ocultos (lista negra de sugerencias)
+    private $hiddenClientsFile = 'hidden_clients.json';
+
     // Listado de bobinas con filtros y días restantes
     public function index(Request $request)
     {
@@ -49,12 +54,24 @@ class BobinaController extends Controller
             $query->where('user_id', auth()->id());
         }
 
-        $bobinas = $query->orderBy('fecha_embarque', 'desc')->paginate(15);
+        // Ordenamiento
+        $order = 'desc';
+        $orderBy = 'fecha_embarque';
 
-        // Calcular días restantes para cada bobina
-        $bobinas->getCollection()->transform(function ($bobina) {
-            $bobina = $this->calcularDiasRestantes($bobina);
-            return $bobina;
+        if ($request->filled('orden_dias')) {
+            // Si hay filtro de días, el orden lo manejamos después o ajustamos aquí si es posible
+            // Por ahora mantenemos el orden por fecha, el frontend puede reordenar visualmente
+            // o implementamos lógica avanzada de ordenamiento aquí
+        }
+
+        $bobinas = $query->orderBy($orderBy, $order)->paginate(15);
+
+        // Optimización: Cargar configuraciones una sola vez
+        $configuraciones = Configuracion::all()->keyBy('cliente');
+
+        // Calcular días restantes para cada bobina pasando las configuraciones
+        $bobinas->getCollection()->transform(function ($bobina) use ($configuraciones) {
+            return $this->calcularDiasRestantes($bobina, $configuraciones);
         });
 
         return response()->json($bobinas);
@@ -63,7 +80,7 @@ class BobinaController extends Controller
     // Crear bobina
     public function store(Request $request)
     {
-        \Log::info('Iniciando store method', ['hu' => $request->hu, 'user' => auth()->user()->username]);
+        Log::info('Iniciando store method', ['hu' => $request->hu, 'user' => auth()->user()->username]);
 
         $request->validate([
             'hu' => 'required|string|size:9',
@@ -72,11 +89,17 @@ class BobinaController extends Controller
         ]);
 
         try {
+            // ✅ Lógica: Si se usa un cliente, restaurarlo a las sugerencias si estaba oculto
+            if ($request->filled('cliente')) {
+                $this->restoreHiddenClient($request->cliente);
+            }
+
             // Verificar si ya existe el HU
             $existingBobina = Bobina::where('hu', $request->hu)->first();
 
             if ($existingBobina) {
-                \Log::info('Bobina existente encontrada', ['hu' => $request->hu, 'existing_id' => $existingBobina->id]);
+                // ... (Lógica de reemplazo existente) ...
+                Log::info('Bobina existente encontrada', ['hu' => $request->hu, 'existing_id' => $existingBobina->id]);
 
                 if (!$request->has('lider_username') || !$request->has('lider_password')) {
                     return response()->json([
@@ -86,55 +109,30 @@ class BobinaController extends Controller
                     ], 409);
                 }
 
-                \Log::info('Verificando credenciales de líder', ['lider_username' => $request->lider_username]);
-
                 $lider = \App\Models\User::where('username', $request->lider_username)
                     ->where('role', 'lider')
                     ->first();
 
-                if (!$lider) {
-                    \Log::warning('Líder no encontrado', ['username' => $request->lider_username]);
-                    return response()->json(['error' => 'Usuario líder no encontrado'], 401);
+                if (!$lider || !\Hash::check($request->lider_password, $lider->password)) {
+                    return response()->json(['error' => 'Credenciales de líder incorrectas'], 401);
                 }
 
-                if (!\Hash::check($request->lider_password, $lider->password)) {
-                    \Log::warning('Contraseña de líder incorrecta', ['username' => $request->lider_username]);
-                    return response()->json(['error' => 'Contraseña de líder incorrecta'], 401);
-                }
-
-                \Log::info('Líder autorizado', ['lider_id' => $lider->id]);
-
-                // ✅ MEJORA: Eliminar foto anterior ANTES de almacenar la nueva
+                // Eliminar foto anterior ANTES de almacenar la nueva
                 $fotoPathAnterior = $existingBobina->foto_path;
-
-                \Log::info('Almacenando nueva imagen');
                 $imagePath = $this->storeImage($request);
 
-                // ✅ MEJORA: Verificar que la nueva imagen se almacenó correctamente antes de eliminar la anterior
                 if ($imagePath && Storage::disk('public')->exists($imagePath)) {
-                    \Log::info('Nueva imagen almacenada correctamente', ['nueva_ruta' => $imagePath]);
-
-                    // ✅ ELIMINAR FOTO ANTERIOR solo si existe
                     if ($fotoPathAnterior && Storage::disk('public')->exists($fotoPathAnterior)) {
-                        \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $fotoPathAnterior]);
                         Storage::disk('public')->delete($fotoPathAnterior);
-                        
-                        // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen anterior
                         $this->eliminarCarpetasVaciasIndividual($fotoPathAnterior);
                     }
                 } else {
-                    \Log::error('Error al almacenar nueva imagen');
                     return response()->json(['error' => 'Error al almacenar la nueva imagen'], 500);
                 }
 
-                \Log::info('Actualizando bobina existente', [
-                    'bobina_id' => $existingBobina->id,
-                    'nueva_ruta' => $imagePath
-                ]);
-
                 // Actualizar la bobina existente
                 $existingBobina->update([
-                    'cliente' => $request->cliente,
+                    'cliente' => trim($request->cliente), // ✅ Guardamos tal cual se ingresó
                     'foto_path' => $imagePath,
                     'aprobado_por' => $lider->id,
                     'reemplazado_por' => auth()->id(),
@@ -144,8 +142,6 @@ class BobinaController extends Controller
 
                 $existingBobina->load(['usuario', 'aprobador', 'reemplazador']);
                 $existingBobina = $this->calcularDiasRestantes($existingBobina);
-
-                \Log::info('Bobina reemplazada exitosamente', ['bobina_id' => $existingBobina->id]);
 
                 return response()->json([
                     'message' => 'Bobina reemplazada con autorización del líder',
@@ -158,7 +154,7 @@ class BobinaController extends Controller
 
             $bobina = Bobina::create([
                 'hu' => $request->hu,
-                'cliente' => $request->cliente,
+                'cliente' => trim($request->cliente), // ✅ Guardamos tal cual se ingresó
                 'foto_path' => $imagePath,
                 'user_id' => auth()->id(),
                 'fecha_embarque' => now(),
@@ -169,29 +165,11 @@ class BobinaController extends Controller
 
             return response()->json($bobina, 201);
         } catch (\Exception $e) {
-            \Log::error('Error en store method: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'hu' => $request->hu,
-                'user' => auth()->user()->username
-            ]);
+            Log::error('Error en store method: ' . $e->getMessage());
             return response()->json([
                 'error' => 'Error interno del servidor: ' . $e->getMessage()
             ], 500);
         }
-    }
-
-    // Mostrar bobina
-    public function show($id)
-    {
-        $bobina = Bobina::with(['usuario', 'aprobador', 'reemplazador'])->findOrFail($id);
-
-        if (auth()->user()->role === 'embarcador' && $bobina->user_id !== auth()->id()) {
-            return response()->json(['error' => 'No autorizado'], 403);
-        }
-
-        $bobina = $this->calcularDiasRestantes($bobina);
-
-        return response()->json($bobina);
     }
 
     // Actualizar bobina
@@ -199,7 +177,6 @@ class BobinaController extends Controller
     {
         $bobina = Bobina::findOrFail($id);
 
-        // Verificar permisos
         if (auth()->user()->role === 'embarcador' && $bobina->user_id !== auth()->id()) {
             return response()->json(['error' => 'No autorizado'], 403);
         }
@@ -210,25 +187,21 @@ class BobinaController extends Controller
             'foto' => 'sometimes|image|mimes:jpeg,png,jpg,gif,webp|max:5120'
         ]);
 
+        // ✅ Lógica: Restaurar cliente si se usa en update
+        if ($request->filled('cliente')) {
+            $this->restoreHiddenClient($request->cliente);
+        }
+
         $autorizacionLider = filter_var($request->input('autorizacion_lider', false), FILTER_VALIDATE_BOOLEAN);
 
-        // ✅ MEJORA: Manejo más robusto del reemplazo de imagen
         if ($request->hasFile('foto')) {
-            // Almacenar nueva imagen primero
             $nuevaImagePath = $this->storeImage($request);
 
             if ($nuevaImagePath && Storage::disk('public')->exists($nuevaImagePath)) {
-                \Log::info('Nueva imagen almacenada correctamente', ['nueva_ruta' => $nuevaImagePath]);
-
-                // ✅ Eliminar foto anterior solo si la nueva se almacenó correctamente
                 if ($bobina->foto_path && Storage::disk('public')->exists($bobina->foto_path)) {
-                    \Log::info('Eliminando foto anterior', ['foto_path_anterior' => $bobina->foto_path]);
                     Storage::disk('public')->delete($bobina->foto_path);
-                    
-                    // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen anterior
                     $this->eliminarCarpetasVaciasIndividual($bobina->foto_path);
                 }
-
                 $bobina->foto_path = $nuevaImagePath;
 
                 if ($autorizacionLider) {
@@ -236,13 +209,12 @@ class BobinaController extends Controller
                     $bobina->fecha_reemplazo = now();
                 }
             } else {
-                \Log::error('Error al almacenar nueva imagen en update');
                 return response()->json(['error' => 'Error al almacenar la nueva imagen'], 500);
             }
         }
 
         $bobina->hu = $request->hu;
-        $bobina->cliente = $request->cliente;
+        $bobina->cliente = trim($request->cliente); // ✅ Guardamos tal cual se ingresó
 
         if ($autorizacionLider && $request->filled('lider_id')) {
             $lider = \App\Models\User::find($request->input('lider_id'));
@@ -259,51 +231,93 @@ class BobinaController extends Controller
         return response()->json($bobina);
     }
 
-    // Eliminar bobina
-    public function destroy($id)
+    // ✅ MÉTODO CORREGIDO: Para filtros - mostrar TODAS las variantes únicas
+    public function getClientes(Request $request)
     {
-        $bobina = Bobina::findOrFail($id);
+        // Verificar si se solicitan clientes ocultos (para filtros)
+        if ($request->has('include_hidden') && filter_var($request->input('include_hidden'), FILTER_VALIDATE_BOOLEAN)) {
+            // ✅ PARA FILTROS: Mostrar TODAS las variantes de clientes (case-sensitive)
+            $todosLosClientes = Bobina::whereNotNull('cliente')
+                ->where('cliente', '!=', '')
+                ->select('cliente')
+                ->distinct() // Usar DISTINCT en SQL para obtener valores únicos
+                ->orderBy('cliente', 'asc') // Ordenar alfabéticamente
+                ->pluck('cliente');
 
-        if (auth()->user()->role !== 'admin') {
+            return response()->json($todosLosClientes);
+        }
+
+        // ✅ PARA SUGERENCIAS: Mantener la lógica original con prioridad a versiones recientes
+        // 1. Obtener todos los nombres de clientes ordenados por ID descendente (más recientes primero)
+        $todosLosClientes = Bobina::whereNotNull('cliente')
+            ->where('cliente', '!=', '')
+            ->orderBy('id', 'desc') // Prioridad al último registrado
+            ->pluck('cliente');
+
+        // 2. Filtrar únicos en PHP (case-insensitive) manteniendo el primero que encontramos (el más reciente)
+        $clientesUnicos = [];
+        foreach ($todosLosClientes as $cliente) {
+            $clienteTrim = trim($cliente);
+            $clienteLower = mb_strtolower($clienteTrim, 'UTF-8');
+
+            // Si no hemos visto esta versión del nombre (en minúsculas), la guardamos
+            // Como venimos ordenados por ID desc, guardamos la versión MÁS NUEVA
+            if (!isset($clientesUnicos[$clienteLower])) {
+                $clientesUnicos[$clienteLower] = $clienteTrim;
+            }
+        }
+
+        $clientesDB = array_values($clientesUnicos);
+
+        // 3. Obtener lista de clientes ocultos del archivo JSON
+        $hiddenClients = $this->getHiddenClientsList();
+
+        // 4. Filtrar: Quitar los ocultos de la lista
+        // Usamos una comparación insensible a mayúsculas
+        $hiddenClientsLower = array_map(function ($val) {
+            return mb_strtolower(trim($val), 'UTF-8');
+        }, $hiddenClients);
+
+        $clientesFiltrados = array_filter($clientesDB, function ($cliente) use ($hiddenClientsLower) {
+            return !in_array(mb_strtolower(trim($cliente), 'UTF-8'), $hiddenClientsLower);
+        });
+
+        sort($clientesFiltrados); // Ordenar alfabéticamente
+
+        return response()->json(array_values($clientesFiltrados));
+    }
+
+    // ✅ MÉTODO ESPECÍFICO PARA FILTROS: Todas las variantes case-sensitive
+    public function getClientesFiltros(Request $request)
+    {
+        // Para filtros, necesitamos TODAS las variantes exactas que existen
+        $clientes = Bobina::whereNotNull('cliente')
+            ->where('cliente', '!=', '')
+            ->select('cliente')
+            ->distinct() // DISTINCT en SQL para valores únicos exactos
+            ->orderBy('cliente', 'asc') // Orden alfabético
+            ->pluck('cliente');
+
+        // Opcional: Añadir parámetros para paginación si hay muchos
+        if ($request->has('limit')) {
+            $clientes = $clientes->take($request->input('limit', 1000));
+        }
+
+        return response()->json($clientes);
+    }
+
+    // Mostrar bobina
+    public function show($id)
+    {
+        $bobina = Bobina::with(['usuario', 'aprobador', 'reemplazador'])->findOrFail($id);
+
+        if (auth()->user()->role === 'embarcador' && $bobina->user_id !== auth()->id()) {
             return response()->json(['error' => 'No autorizado'], 403);
         }
 
-        // ✅ MEJORA: Log más detallado para eliminación
-        \Log::info('Eliminando bobina', [
-            'bobina_id' => $bobina->id,
-            'hu' => $bobina->hu,
-            'foto_path' => $bobina->foto_path
-        ]);
+        $bobina = $this->calcularDiasRestantes($bobina);
 
-        $fotoPath = $bobina->foto_path;
-
-        if ($fotoPath && Storage::disk('public')->exists($fotoPath)) {
-            \Log::info('Eliminando archivo físico', ['ruta' => $fotoPath]);
-            Storage::disk('public')->delete($fotoPath);
-            
-            // ✅ NUEVO: Intentar eliminar carpetas vacías después de borrar la imagen
-            $this->eliminarCarpetasVaciasIndividual($fotoPath);
-        } else {
-            \Log::warning('Archivo físico no encontrado', ['ruta' => $fotoPath]);
-        }
-
-        $bobina->delete();
-
-        \Log::info('Bobina eliminada exitosamente', ['bobina_id' => $id]);
-
-        return response()->json(['message' => 'Bobina eliminada']);
-    }
-
-    // Obtener clientes únicos
-    public function getClientes()
-    {
-        $clientes = Bobina::whereNotNull('cliente')
-            ->where('cliente', '!=', '')
-            ->distinct()
-            ->pluck('cliente')
-            ->values();
-
-        return response()->json($clientes);
+        return response()->json($bobina);
     }
 
     // Verificar autorización líder
@@ -336,9 +350,105 @@ class BobinaController extends Controller
                 ]
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error en verificación de líder: ' . $e->getMessage());
+            Log::error('Error en verificación de líder: ' . $e->getMessage());
             return response()->json(['error' => 'Error interno del servidor'], 500);
         }
+    }
+
+    // Renombrar cliente (Solo Admin)
+    public function updateClientName(Request $request)
+    {
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $request->validate([
+            'current_name' => 'required|string',
+            'new_name' => 'required|string|min:1'
+        ]);
+
+        $currentName = $request->current_name;
+        $newName = $request->new_name;
+
+        try {
+            DB::beginTransaction();
+
+            $bobinasUpdated = Bobina::where('cliente', $currentName)
+                ->update(['cliente' => $newName]);
+
+            $configUpdated = Configuracion::where('cliente', $currentName)
+                ->update(['cliente' => $newName]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Nombre de cliente actualizado correctamente',
+                'bobinas_updated' => $bobinasUpdated,
+                'config_updated' => $configUpdated
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error al renombrar cliente: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al actualizar el nombre del cliente'], 500);
+        }
+    }
+
+    // Eliminar cliente de SUGERENCIAS (Ocultar)
+    public function deleteClient(Request $request)
+    {
+        if (!in_array(auth()->user()->role, ['admin', 'embarcador'])) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        $request->validate([
+            'client_name' => 'required|string'
+        ]);
+
+        $clientName = $request->client_name;
+
+        try {
+            $this->addHiddenClient($clientName);
+
+            return response()->json([
+                'message' => 'Cliente eliminado de las sugerencias correctamente',
+                'status' => 'hidden'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al ocultar cliente: ' . $e->getMessage());
+            return response()->json(['error' => 'Error al eliminar el cliente de sugerencias'], 500);
+        }
+    }
+
+    // Eliminar bobina
+    public function destroy($id)
+    {
+        $bobina = Bobina::findOrFail($id);
+
+        if (auth()->user()->role !== 'admin') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        Log::info('Eliminando bobina', [
+            'bobina_id' => $bobina->id,
+            'hu' => $bobina->hu,
+            'foto_path' => $bobina->foto_path
+        ]);
+
+        $fotoPath = $bobina->foto_path;
+
+        if ($fotoPath && Storage::disk('public')->exists($fotoPath)) {
+            Log::info('Eliminando archivo físico', ['ruta' => $fotoPath]);
+            Storage::disk('public')->delete($fotoPath);
+            $this->eliminarCarpetasVaciasIndividual($fotoPath);
+        } else {
+            Log::warning('Archivo físico no encontrado', ['ruta' => $fotoPath]);
+        }
+
+        $bobina->delete();
+
+        Log::info('Bobina eliminada exitosamente', ['bobina_id' => $id]);
+
+        return response()->json(['message' => 'Bobina eliminada']);
     }
 
     // Función para almacenar imagen
@@ -349,7 +459,6 @@ class BobinaController extends Controller
             $hu = $request->hu;
             $cliente = $request->cliente ?: 'general';
 
-            // Limpiar nombre del cliente para usar en el path
             $clienteFolder = preg_replace('/[^a-zA-Z0-9]/', '_', $cliente);
             $folderPath = 'imagenes/' . $clienteFolder . '/' . date('Y-m-d');
             $fileName = $hu . '_' . time() . '.' . $image->getClientOriginalExtension();
@@ -361,30 +470,32 @@ class BobinaController extends Controller
 
             $fullPath = $folderPath . '/' . $fileName;
 
-            // ✅ MEJORA: Verificar que se pudo almacenar la imagen
             $stored = Storage::disk('public')->put($fullPath, $img->encode());
 
             if (!$stored) {
-                \Log::error('Error al almacenar imagen en disco', ['ruta' => $fullPath]);
+                Log::error('Error al almacenar imagen en disco', ['ruta' => $fullPath]);
                 throw new \Exception('No se pudo almacenar la imagen en el servidor');
             }
 
-            \Log::info('Imagen almacenada exitosamente', ['ruta' => $fullPath]);
+            Log::info('Imagen almacenada exitosamente', ['ruta' => $fullPath]);
             return $fullPath;
         } catch (\Exception $e) {
-            \Log::error('Error en storeImage: ' . $e->getMessage());
-            throw $e; // Relanzar la excepción para manejarla en el método caller
+            Log::error('Error en storeImage: ' . $e->getMessage());
+            throw $e;
         }
     }
 
-    // Función para calcular días restantes
-    private function calcularDiasRestantes($bobina)
+    private function calcularDiasRestantes($bobina, $configuraciones = null)
     {
         $diasRetencionDefault = 90;
-        $configuraciones = Configuracion::all()->keyBy('cliente');
-        $diasRetencion = $configuraciones[$bobina->cliente]->dias_retencion ?? $diasRetencionDefault;
 
-        // Usar fecha_reemplazo si existe, sino fecha_embarque
+        if ($configuraciones === null) {
+            $configuraciones = Configuracion::all()->keyBy('cliente');
+        }
+
+        $config = $configuraciones->get($bobina->cliente);
+        $diasRetencion = $config ? $config->dias_retencion : $diasRetencionDefault;
+
         $fechaBase = $bobina->fecha_reemplazo ?? $bobina->fecha_embarque;
 
         if ($fechaBase) {
@@ -398,32 +509,25 @@ class BobinaController extends Controller
         return $bobina;
     }
 
-    /**
-     * Elimina carpetas vacías después de eliminar un archivo individual
-     */
     private function eliminarCarpetasVaciasIndividual(string $filePath): void
     {
         try {
             $directorios = explode('/', dirname($filePath));
             $currentPath = '';
-            
-            // Reconstruir y verificar cada nivel del path desde el más específico
+
             foreach ($directorios as $dir) {
                 $currentPath = $currentPath ? $currentPath . '/' . $dir : $dir;
-                
+
                 if ($currentPath !== 'imagenes' && $this->esCarpetaVacia($currentPath)) {
                     Storage::disk('public')->deleteDirectory($currentPath);
-                    \Log::info("Carpeta vacía eliminada individualmente: {$currentPath}");
+                    Log::info("Carpeta vacía eliminada individualmente: {$currentPath}");
                 }
             }
         } catch (\Exception $e) {
-            \Log::error("Error al eliminar carpetas vacías individual: " . $e->getMessage());
+            Log::error("Error al eliminar carpetas vacías individual: " . $e->getMessage());
         }
     }
 
-    /**
-     * Verifica si una carpeta está vacía (mismo método que en el comando)
-     */
     private function esCarpetaVacia(string $carpeta): bool
     {
         if (!Storage::disk('public')->exists($carpeta)) {
@@ -434,5 +538,50 @@ class BobinaController extends Controller
         $subcarpetas = Storage::disk('public')->directories($carpeta);
 
         return empty($archivos) && empty($subcarpetas);
+    }
+
+    // --- MÉTODOS PRIVADOS AUXILIARES PARA GESTIÓN DE CLIENTES OCULTOS ---
+
+    private function getHiddenClientsList()
+    {
+        if (!Storage::disk('local')->exists($this->hiddenClientsFile)) {
+            return [];
+        }
+
+        $content = Storage::disk('local')->get($this->hiddenClientsFile);
+        return json_decode($content, true) ?? [];
+    }
+
+    private function addHiddenClient($name)
+    {
+        $hidden = $this->getHiddenClientsList();
+
+        if (!in_array($name, $hidden)) {
+            $hidden[] = $name;
+            Storage::disk('local')->put($this->hiddenClientsFile, json_encode($hidden));
+        }
+    }
+
+    // ✅ MÉTODO CORREGIDO: Solo restaura el cliente al JSON, NO actualiza la BD
+    private function restoreHiddenClient($name)
+    {
+        $hidden = $this->getHiddenClientsList();
+        $targetName = mb_strtolower(trim($name), 'UTF-8');
+        $originalCount = count($hidden);
+
+        // Filtramos eliminando cualquier coincidencia sin importar mayúsculas
+        $newHidden = array_filter($hidden, function ($item) use ($targetName) {
+            return mb_strtolower(trim($item), 'UTF-8') !== $targetName;
+        });
+
+        // Solo si hubo cambios (se eliminó de la lista negra)
+        if (count($newHidden) !== $originalCount) {
+            // Guardar JSON actualizado
+            $newHidden = array_values($newHidden);
+            Storage::disk('local')->put($this->hiddenClientsFile, json_encode($newHidden));
+            Log::info("Cliente restaurado a sugerencias (JSON) automáticamente: $name");
+
+            // ❌ SE MANTIENE ELIMINADA LA ACTUALIZACIÓN MASIVA DE HISTÓRICOS ❌
+        }
     }
 }

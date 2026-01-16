@@ -6,7 +6,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'], 
+    'allowed_origins' => ['*'], // Permitir todo en desarrollo
 
     'allowed_origins_patterns' => [],
 

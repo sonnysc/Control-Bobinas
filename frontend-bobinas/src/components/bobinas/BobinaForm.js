@@ -18,18 +18,16 @@ import {
   DialogContent,
   DialogActions,
   ListItemText,
-  Paper,
-  Divider
+  Paper
 } from '@mui/material';
 import { 
   ArrowBack, 
   Save, 
   DeleteForever, 
-  Close, 
-  CleaningServices,
   QrCodeScanner,
   Business,
-  CameraAlt 
+  CameraAlt,
+  Close
 } from '@mui/icons-material';
 import { ROLES } from '../../utils/constants';
 import { useBobinaForm } from '../hooks/useBobinaForm';
@@ -77,9 +75,7 @@ const BobinaForm = () => {
     user,
     handleFileSelect,
     handleSubmit,
-    setHasMadeFirstRegistration,
     setFormData,
-    setPreview,
     handleConfirmReplacement,
     handleCancelReplacement,
     handleCancelAuthorization,
@@ -92,6 +88,33 @@ const BobinaForm = () => {
     clientes, 
     removeClientSuggestion
   } = bobinaForm;
+
+  // ✅ CORRECCIÓN PARA MÓVILES EN RED LOCAL
+  const getImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    
+    if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http')) {
+        return url;
+    }
+
+    let relativePath = url;
+    if (url.includes('storage/')) {
+        const parts = url.split('storage/');
+        relativePath = `/storage/${parts[parts.length - 1]}`;
+    } else if (!url.startsWith('/')) {
+        relativePath = `/${url}`;
+    }
+
+    // Detectar entorno de desarrollo por puerto (3000/3001) o variable NODE_ENV
+    const currentPort = window.location.port;
+    const isDevelopment = process.env.NODE_ENV === 'development' || currentPort === '3000' || currentPort === '3001';
+
+    if (isDevelopment) {
+        return `${window.location.protocol}//${window.location.hostname}:8001${relativePath}`;
+    }
+
+    return relativePath;
+  };
 
   const onInputChangeWrapper = (e) => {
     const { name, value } = e.target;
@@ -132,13 +155,10 @@ const BobinaForm = () => {
   };
 
   const handleClearForm = () => {
-    setHasMadeFirstRegistration(false);
-    setFormData({
-      hu: '',
-      cliente: '',
-      foto: null
-    });
-    setPreview(null);
+    setFormData(prev => ({
+      ...prev,
+      cliente: ''
+    }));
   };
 
   useEffect(() => {
@@ -148,7 +168,7 @@ const BobinaForm = () => {
     checkMobile();
   }, []);
 
-  const canDelete = user?.role === ROLES.ADMIN; 
+  const canDelete = user?.role === ROLES.ADMIN || user?.role === ROLES.EMBARCADOR; 
 
   if (isEdit && user?.role !== ROLES.ADMIN) {
     return (
@@ -161,7 +181,8 @@ const BobinaForm = () => {
     );
   }
 
-  // Componente interno para los encabezados de sección
+  const hasClientContent = formData.cliente && formData.cliente.toString().trim() !== '';
+
   const SectionHeader = ({ icon: Icon, title }) => (
     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, pb: 1, borderBottom: '1px solid #f0f0f0' }}>
         <Icon color="primary" sx={{ mr: 1.5 }} />
@@ -179,7 +200,6 @@ const BobinaForm = () => {
         </Button>
       )}
 
-      {/* ✅ Tarjeta principal ocupando todo el ancho disponible hasta 1200px */}
       <Card sx={{ width: '100%', maxWidth: '1200px', mx: 'auto', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
         <CardContent sx={{ p: { xs: 2, md: 4 } }}>
           <Typography variant="h5" gutterBottom sx={{ fontWeight: 700, color: '#1565c0', mb: 3, textAlign: 'center' }}>
@@ -239,10 +259,10 @@ const BobinaForm = () => {
             </DialogTitle>
             <DialogContent>
                 <Typography>
-                    ¿Deseas quitar "<strong>{clientToDelete}</strong>" de la lista?
+                    ¿Deseas quitar "<strong>{clientToDelete}</strong>" de la lista de sugerencias?
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                    Esto evitará que aparezca como opción en el futuro.
+                    Esto evitará que aparezca como opción en el futuro. (No elimina registros históricos)
                 </Typography>
             </DialogContent>
             <DialogActions>
@@ -252,11 +272,8 @@ const BobinaForm = () => {
           </Dialog>
 
           <form onSubmit={handleSubmit} style={{ width: '100%' }}>
-            {/* ✅ Eliminamos spacing={3} y margin para controlar el ancho manualmente */}
             <Grid container sx={{ width: '100%', m: 0 }}>
               
-              {/* Sección 1: Identificación HU */}
-              {/* ✅ p: '0 !important' elimina el padding interno del grid para evitar desalineación */}
               <Grid item xs={12} sx={{ width: '100%', p: '0 !important', mb: 2 }}>
                 <Paper elevation={0} sx={{ width: '100%', p: 2.5, bgcolor: '#f8f9fa', borderRadius: '12px', border: '1px solid #eef0f2', boxSizing: 'border-box' }}>
                     <SectionHeader icon={QrCodeScanner} title="Identificación de Bobina (HU)" />
@@ -269,24 +286,17 @@ const BobinaForm = () => {
                 </Paper>
               </Grid>
 
-              {/* Sección 2: Cliente */}
               <Grid item xs={12} sx={{ width: '100%', p: '0 !important', mb: 2 }}>
                 <Paper elevation={0} sx={{ width: '100%', p: 2.5, bgcolor: '#f8f9fa', borderRadius: '12px', border: '1px solid #eef0f2', boxSizing: 'border-box' }}>
                     <SectionHeader icon={Business} title="Asignación de Cliente" />
                     
-                    <Box sx={{ 
-                        display: 'flex', 
-                        flexDirection: 'row', 
-                        gap: 1.5,
-                        alignItems: 'flex-start',
-                        width: '100%'
-                    }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'row', gap: 1.5, alignItems: 'flex-start', width: '100%' }}>
                         <Box sx={{ flexGrow: 1, width: '100%' }}>
                             <Autocomplete
                                 fullWidth
                                 freeSolo
-                                options={clientes}
-                                value={formData.cliente}
+                                options={Array.isArray(clientes) ? clientes : []}
+                                value={formData.cliente || ''}
                                 onChange={onClienteChange}
                                 onInputChange={(event, newInputValue) => {
                                     if (event && event.type === 'change') {
@@ -298,15 +308,13 @@ const BobinaForm = () => {
                                         {...params}
                                         label="Cliente"
                                         name="cliente"
-                                        placeholder="Seleccione o escriba"
+                                        placeholder="Seleccione o escriba el cliente"
                                         required
                                         InputLabelProps={{ shrink: true }}
                                         size="small"
                                         sx={{ 
                                             bgcolor: 'white',
-                                            '& .MuiOutlinedInput-root': {
-                                                borderRadius: '8px'
-                                            }
+                                            '& .MuiOutlinedInput-root': { borderRadius: '8px' }
                                         }}
                                     />
                                 )}
@@ -314,26 +322,17 @@ const BobinaForm = () => {
                                     const { key, ...otherProps } = props;
                                     return (
                                     <li key={key} {...otherProps}>
-                                        <Box sx={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
-                                            alignItems: 'center', 
-                                            width: '100%'
-                                        }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                                             <ListItemText 
                                                 primary={option} 
-                                                sx={{ 
-                                                    mr: 1, 
-                                                    flexGrow: 1, 
-                                                    whiteSpace: 'normal', 
-                                                    wordBreak: 'break-word' 
-                                                }} 
+                                                sx={{ mr: 1, flexGrow: 1, whiteSpace: 'normal', wordBreak: 'break-word' }} 
                                             />
                                             {canDelete && (
                                                 <IconButton 
                                                     onClick={(e) => handleDeleteClick(e, option)}
-                                                    size="small"
-                                                    sx={{ color: '#ef5350' }}
+                                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                                    size="medium"
+                                                    sx={{ color: '#ef5350', flexShrink: 0, p: 1.5 }}
                                                 >
                                                     <Close fontSize="small" />
                                                 </IconButton>
@@ -348,24 +347,16 @@ const BobinaForm = () => {
                             <Button
                                 variant="outlined"
                                 onClick={handleClearForm}
-                                startIcon={<CleaningServices />} // ✅ Se usa aquí
-                                color="secondary"
                                 sx={{ 
-                                    height: '40px', 
-                                    minWidth: 'auto',
-                                    whiteSpace: 'nowrap',
-                                    bgcolor: 'white',
-                                    borderColor: '#e0e0e0',
-                                    color: '#666',
-                                    borderRadius: '8px',
-                                    textTransform: 'none', 
-                                    fontSize: '0.875rem',
-                                    fontWeight: 500,
-                                    px: 2,
+                                    height: '40px', minWidth: 'auto', whiteSpace: 'nowrap', borderRadius: '8px',
+                                    textTransform: 'none', fontSize: '0.875rem', fontWeight: 500, px: 2,
+                                    borderColor: hasClientContent ? 'primary.main' : '#e0e0e0',
+                                    color: hasClientContent ? 'primary.main' : '#666',
+                                    bgcolor: hasClientContent ? 'rgba(25, 118, 210, 0.04)' : 'white',
                                     '&:hover': {
-                                        borderColor: '#bdbdbd',
-                                        bgcolor: '#f5f5f5',
-                                        color: '#333'
+                                        borderColor: hasClientContent ? 'primary.dark' : '#bdbdbd',
+                                        bgcolor: hasClientContent ? 'rgba(25, 118, 210, 0.12)' : '#f5f5f5',
+                                        color: hasClientContent ? 'primary.dark' : '#333'
                                     }
                                 }}
                             >
@@ -376,7 +367,6 @@ const BobinaForm = () => {
                 </Paper>
               </Grid>
 
-              {/* Sección 3: Evidencia Fotográfica */}
               <Grid item xs={12} sx={{ width: '100%', p: '0 !important', mb: 2 }}>
                 <Paper elevation={0} sx={{ width: '100%', p: 2.5, bgcolor: '#f8f9fa', borderRadius: '12px', border: '1px solid #eef0f2', boxSizing: 'border-box' }}>
                     <SectionHeader icon={CameraAlt} title="Evidencia Fotográfica" />
@@ -387,12 +377,11 @@ const BobinaForm = () => {
                       cameraPermission={camera.cameraPermission}
                       onFileSelect={handleFileSelect}
                       onTakePhoto={camera.startCamera}
-                      preview={preview}
+                      preview={getImageUrl(preview)} // ✅ Usamos la función corregida aquí
                     />
                 </Paper>
               </Grid>
 
-              {/* Botón de Acción */}
               <Grid item xs={12} sx={{ width: '100%', p: '0 !important', mt: 1 }}>
                 <Button
                   type="submit"
@@ -401,15 +390,9 @@ const BobinaForm = () => {
                   disabled={loading || !!existingBobina || !isFormValid}
                   fullWidth
                   sx={{ 
-                      height: '45px', 
-                      fontSize: '1rem',
-                      fontWeight: 600,
-                      borderRadius: '8px',
-                      textTransform: 'none',
-                      boxShadow: 'none',
-                      '&:hover': {
-                          boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)'
-                      }
+                      height: '45px', fontSize: '1rem', fontWeight: 600, borderRadius: '8px',
+                      textTransform: 'none', boxShadow: 'none',
+                      '&:hover': { boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)' }
                   }}
                 >
                   {loading ? 'Procesando...' : isEdit ? 'Guardar Cambios' : 'Registrar Bobina'}

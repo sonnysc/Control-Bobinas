@@ -11,9 +11,16 @@ import {
   Box,
   TextField,
   CircularProgress,
-  IconButton
+  IconButton,
+  Avatar,
+  InputAdornment
 } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { 
+    Close, 
+    Security,
+    Person,
+    Lock
+} from '@mui/icons-material';
 
 const AuthorizationModal = ({
   open,
@@ -22,7 +29,7 @@ const AuthorizationModal = ({
   onCredencialesChange,
   onAuthorize,
   autorizando,
-  error // Nueva prop para errores
+  error
 }) => {
   return (
     <Dialog
@@ -30,12 +37,16 @@ const AuthorizationModal = ({
       onClose={onClose}
       maxWidth="sm"
       fullWidth
+      scroll="paper"
       PaperProps={{
         sx: {
           borderRadius: '16px',
           boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
           overflow: 'hidden',
-          backgroundColor: '#fff'
+          backgroundColor: '#fff',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column'
         }
       }}
     >
@@ -43,12 +54,32 @@ const AuthorizationModal = ({
         backgroundColor: '#2196f3',
         color: 'white',
         textAlign: 'center',
-        py: 3,
-        fontSize: '1.3rem',
+        py: 2,
+        fontSize: '1.1rem',
         fontWeight: 700,
-        position: 'relative'
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 0.5,
+        flexShrink: 0,
+        pb: 3,
+        mb: 1
       }}>
-        🔐 Autorización Requerida
+        <Avatar sx={{ 
+            bgcolor: 'rgba(255,255,255,0.2)', 
+            width: 40,
+            height: 40,
+            marginBottom: 0.5,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        }}>
+            <Security sx={{ fontSize: 22, color: 'white' }} />
+        </Avatar>
+        
+        <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.1rem' }}>
+            Autorización Requerida
+        </Typography>
+        
         <IconButton
           onClick={onClose}
           sx={{
@@ -62,10 +93,12 @@ const AuthorizationModal = ({
               backgroundColor: 'rgba(255,255,255,0.2)',
               transform: 'scale(1.1)'
             },
-            transition: 'all 0.2s ease'
+            transition: 'all 0.2s ease',
+            width: 32,
+            height: 32
           }}
         >
-          <Close />
+          <Close sx={{ fontSize: 18 }} />
         </IconButton>
       </DialogTitle>
 
@@ -73,10 +106,13 @@ const AuthorizationModal = ({
         sx={{
           px: 4,
           py: 2,
-          minHeight: '300px',
+          pb: 1,
+          overflow: 'auto',
+          flex: 1,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'center',
         }}
       >
         <Box sx={{
@@ -86,24 +122,11 @@ const AuthorizationModal = ({
           justifyContent: 'center',
           textAlign: 'center',
           width: '100%',
-          height: '100%',
-          gap: 1.5
+          gap: 1.5,
+          py: 1,
+          mt: 2
         }}>
-          {/* Mostrar error dentro del modal */}
-          {error && (
-            <Alert 
-              severity="error" 
-              sx={{ 
-                borderRadius: '12px',
-                width: '100%',
-                textAlign: 'left',
-                mb: 2
-              }}
-              onClose={() => {}} // No permitir cerrar el error aquí
-            >
-              {error}
-            </Alert>
-          )}
+          {/* Se eliminó el error de aquí */}
 
           <Alert
             severity="info"
@@ -111,18 +134,27 @@ const AuthorizationModal = ({
               borderRadius: '12px',
               backgroundColor: '#e3f2fd',
               width: '100%',
-              textAlign: 'left'
+              textAlign: 'left',
+              fontSize: '0.9rem',
+              mb: 1,
             }}
           >
-            <Typography variant="body1">
+            <Typography variant="body2">
               Para reemplazar una bobina existente, se requiere la autorización de un líder.
             </Typography>
           </Alert>
 
-          <Typography variant="subtitle2" color="text.secondary" sx={{ alignSelf: 'flex-start', mt: 2 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ 
+            alignSelf: 'flex-start', 
+            mt: 0.5,
+            fontWeight: 600,
+            fontSize: '0.9rem',
+            mb: 1
+          }}>
             Credenciales del Líder:
           </Typography>
 
+          {/* Input de Usuario con icono */}
           <TextField
             fullWidth
             label="Usuario"
@@ -131,10 +163,22 @@ const AuthorizationModal = ({
             onChange={onCredencialesChange}
             required
             InputProps={{
-              sx: { borderRadius: '8px' }
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Person sx={{ fontSize: 18, color: 'action.active' }} />
+                </InputAdornment>
+              ),
+              sx: { 
+                borderRadius: '8px',
+                fontSize: '0.9rem'
+              }
             }}
             disabled={autorizando}
+            size="small"
+            sx={{ mb: 1.5 }}
           />
+          
+          {/* Input de Contraseña con icono */}
           <TextField
             fullWidth
             label="Contraseña"
@@ -144,10 +188,48 @@ const AuthorizationModal = ({
             onChange={onCredencialesChange}
             required
             InputProps={{
-              sx: { borderRadius: '8px' }
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Lock sx={{ fontSize: 18, color: 'action.active' }} />
+                </InputAdornment>
+              ),
+              sx: { 
+                borderRadius: '8px',
+                fontSize: '0.9rem'
+              }
             }}
             disabled={autorizando}
+            size="small"
+            sx={{ mb: 0.5 }} // ✅ REDUCIDO: Menos espacio para que el error esté más cerca
           />
+
+          {/* Mensaje de error compacto debajo de los inputs */}
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                borderRadius: '8px',
+                width: '100%',
+                textAlign: 'left',
+                mt: 0.5, // ✅ POCO margen superior
+                mb: 0.5, // ✅ POCO margen inferior
+                py: 0.5, // ✅ COMPACTO: Padding vertical mínimo
+                fontSize: '0.8rem', // ✅ MÁS PEQUEÑO
+                '& .MuiAlert-icon': {
+                  padding: '4px 0', // ✅ Icono compacto
+                  fontSize: '16px'
+                },
+                '& .MuiAlert-message': {
+                  padding: '2px 0', // ✅ Contenido compacto
+                  lineHeight: 1.2
+                }
+              }}
+            >
+              <Typography variant="caption" sx={{ fontSize: '0.8rem', lineHeight: 1.2 }}>
+                {error}
+              </Typography>
+            </Alert>
+          )}
         </Box>
       </DialogContent>
 
@@ -158,7 +240,9 @@ const AuthorizationModal = ({
           pt: 1,
           justifyContent: 'center',
           gap: 2,
-          backgroundColor: '#f8f9fa'
+          backgroundColor: '#f8f9fa',
+          mt: 0,
+          flexShrink: 0
         }}
       >
         <Button
@@ -168,17 +252,18 @@ const AuthorizationModal = ({
           sx={{
             borderRadius: '8px',
             px: 3,
-            py: 1,
+            py: 0.8,
             fontWeight: 600,
             borderColor: '#ddd',
             color: '#666',
+            fontSize: '0.9rem',
             '&:hover': {
               backgroundColor: '#f0f0f0',
               borderColor: '#bbb'
             }
           }}
         >
-          ✕ Cancelar
+          Cancelar
         </Button>
         <Button
           onClick={onAuthorize}
@@ -187,9 +272,10 @@ const AuthorizationModal = ({
           sx={{
             borderRadius: '8px',
             px: 3,
-            py: 1,
+            py: 0.8,
             fontWeight: 600,
             backgroundColor: '#2196f3',
+            fontSize: '0.9rem',
             '&:hover': {
               backgroundColor: '#1976d2',
               transform: 'scale(1.03)'
@@ -203,7 +289,7 @@ const AuthorizationModal = ({
               Verificando...
             </Box>
           ) : (
-            '🔓 Autorizar'
+            'Autorizar'
           )}
         </Button>
       </DialogActions>

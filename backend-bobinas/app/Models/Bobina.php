@@ -1,7 +1,5 @@
 <?php
-
 // app/Models/Bobina.php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -50,10 +48,12 @@ class Bobina extends Model
         return $this->belongsTo(User::class, 'reemplazado_por');
     }
 
+    // ✅ FIX IMÁGENES: Devuelve ruta relativa siempre, ignorando APP_URL del .env
     public function getFotoUrlAttribute()
     {
         if ($this->foto_path && Storage::disk('public')->exists($this->foto_path)) {
-            return Storage::disk('public')->url($this->foto_path);
+            // En lugar de usar ->url() que devuelve http://localhost..., devolvemos la ruta relativa
+            return '/storage/' . $this->foto_path;
         }
         return null;
     }

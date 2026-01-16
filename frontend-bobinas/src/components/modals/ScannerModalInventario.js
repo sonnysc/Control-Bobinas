@@ -47,6 +47,7 @@ const ScannerModalInventario = ({
             onClose={onClose}
             maxWidth="md"
             fullWidth
+            disableRestoreFocus // ✅ 1. Soluciona el error de "Blocked aria-hidden"
             PaperProps={{
                 sx: {
                     backgroundColor: '#000',
@@ -64,7 +65,8 @@ const ScannerModalInventario = ({
                 position: 'relative',
                 borderBottom: '1px solid rgba(255,255,255,0.1)'
             }}>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                {/* ✅ 2. Soluciona el error HTML: component="div" evita meter un h6 dentro de un h2 */}
+                <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
                     Escanear Número de Serie
                 </Typography>
                 <IconButton
@@ -142,6 +144,7 @@ const ScannerModalInventario = ({
 
                             <Typography
                                 variant="body2"
+                                component="div" // Buena práctica también aquí
                                 sx={{
                                     position: 'absolute',
                                     top: '-50px',
